@@ -1,0 +1,8 @@
+CHOST="x86_64-pc-linux-gnu"
+CFLAGS="-O2 -march=core2 -pipe -msse4.1"
+CXXFLAGS="${CFLAGS}"
+LDFLAGS="-Wl,-O2"
+MAKEOPTS="-j3"
+PATH="/usr/lib/ccache/bin:$PATH"
+CCACHE_DIR="/var/tmp/ccache"
+SANDBOX_WRITE="${SANDBOX_WRITE}:${CCACHE_DIR}"
