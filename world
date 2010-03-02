@@ -25,7 +25,6 @@ net-voip/telepathy-gabble
 net-voip/telepathy-butterfly
 media-sound/alsa-tools
 media-video/gnome-mplayer
-sys-kernel/gentoo-sources
 media-plugins/alsa-plugins
 app-emulation/wine
 sys-process/lsof
@@ -47,7 +46,6 @@ www-client/chromium
 dev-util/valgrind
 sys-process/htop
 sys-apps/gnome-disk-utility
-dev-db/mysql-gui-tools
 app-forensics/chkrootkit
 media-sound/mpd
 media-sound/mpc
@@ -121,8 +119,16 @@ app-misc/tmux
 mail-client/mozilla-thunderbird
 sys-process/at
 media-gfx/fbida
-app-pda/ifuse
 app-misc/vlock
 sys-process/vixie-cron
 www-client/links
 app-text/texlive
+dev-db/mysql-workbench
+gnome-extra/gnome-activity-journal
+games-fps/warsow
+sys-apps/sysvinit-utils
+games-strategy/wesnoth
+gnome-extra/pino
+app-misc/kupfer
+app-pda/ifuse
+net-im/emesene
