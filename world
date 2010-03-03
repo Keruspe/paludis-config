@@ -132,3 +132,4 @@ gnome-extra/pino
 app-misc/kupfer
 app-pda/ifuse
 net-im/emesene
+x11-drivers/nouveau-firmware
