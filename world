@@ -72,10 +72,10 @@ media-sound/easytag
 sys-apps/lsb-release
 app-admin/gnome-system-tools
 dev-util/meld
-dev-util/gitg
+dev-vcs/gitg
 net-misc/telnet-bsd
 app-office/gnumeric
-dev-util/mercurial
+dev-vcs/mercurial
 x11-misc/rss-glx
 media-gfx/xsane
 app-shells/zsh-completion
@@ -127,7 +127,6 @@ dev-db/mysql-workbench
 gnome-extra/gnome-activity-journal
 games-fps/warsow
 sys-apps/sysvinit-utils
-games-strategy/wesnoth
 gnome-extra/pino
 app-misc/kupfer
 app-pda/ifuse
