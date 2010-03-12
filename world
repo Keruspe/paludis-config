@@ -3,7 +3,6 @@ dev-util/ccache
 dev-util/git
 x11-base/xorg-x11
 app-admin/logrotate
-gnome-base/gnome
 sys-apps/preload
 app-laptop/laptop-mode-tools
 app-emulation/qemu-kvm
@@ -20,7 +19,6 @@ media-sound/paprefs
 media-sound/padevchooser
 media-plugins/gst-plugins-pulse
 dev-util/netbeans
-net-misc/gwibber
 net-voip/telepathy-gabble
 net-voip/telepathy-butterfly
 media-sound/alsa-tools
@@ -132,3 +130,5 @@ app-misc/kupfer
 app-pda/ifuse
 net-im/emesene
 x11-drivers/nouveau-firmware
+net-misc/gwibber
+gnome-base/gnome
