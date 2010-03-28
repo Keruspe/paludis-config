@@ -132,3 +132,13 @@ net-im/emesene
 x11-drivers/nouveau-firmware
 net-misc/gwibber
 gnome-base/gnome
+x11-themes/gtk-engines-aurora
+x11-misc/parcellite
+x11-drivers/xf86-video-nouveau
+sys-fs/cryptsetup
+media-sound/tuxguitar
+media-sound/rhythmbox
+media-sound/gpodder
+gnome-extra/gpointing-device-settings
+dev-util/anjuta
+app-backup/nautilus-dropbox
