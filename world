@@ -1,4 +1,3 @@
-=net-im/amsn-0.98.1
 app-accessibility/espeak
 app-admin/gnome-system-tools
 app-backup/nautilus-dropbox
@@ -34,7 +33,8 @@ dev-vcs/giggle
 dev-vcs/gitg
 dev-vcs/mercurial
 games-fps/warsow
-gnome-base/gnome
+gnome*
+gnome-base/librsvg
 gnome-extra/geoclue-properties
 gnome-extra/gnome-paint
 gnome-extra/nm-applet
@@ -61,7 +61,6 @@ media-sound/paprefs
 media-sound/pavucontrol
 media-sound/pavumeter
 media-sound/rhythmbox
-media-video/cheese
 media-video/gnome-mplayer
 net-analyzer/ettercap
 net-analyzer/nmap
@@ -71,8 +70,8 @@ net-analyzer/wireshark
 net-dns/dnsmasq
 net-firewall/ebtables
 net-firewall/iptables
+net-im/amsn
 net-im/emesene
-net-im/empathy
 net-im/telepathy-mission-control
 net-misc/autossh
 net-misc/keychain
