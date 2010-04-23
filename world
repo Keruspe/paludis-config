@@ -38,6 +38,7 @@ gnome-base/librsvg
 gnome-extra/geoclue-properties
 gnome-extra/gnome-paint
 gnome-extra/nm-applet
+mail-client/evolution
 mail-client/mozilla-thunderbird
 media-fonts/artwiz-aleczapka-en
 media-fonts/freefonts
