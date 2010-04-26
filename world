@@ -1,6 +1,7 @@
 app-accessibility/espeak
 app-admin/gnome-system-tools
 app-backup/nautilus-dropbox
+app-crypt/chntpw
 app-editors/gobby
 app-emulation/virt-manager
 app-emulation/wine
@@ -65,8 +66,6 @@ media-sound/rhythmbox
 media-video/gnome-mplayer
 net-analyzer/ettercap
 net-analyzer/nmap
-net-analyzer/tcpdump
-net-analyzer/tcptraceroute
 net-analyzer/wireshark
 net-dns/dnsmasq
 net-firewall/ebtables
@@ -80,7 +79,6 @@ net-misc/networkmanager-openvpn
 net-misc/networkmanager-pptp
 net-misc/pino
 net-misc/telnet-bsd
-net-misc/x11-ssh-askpass
 net-p2p/vuze
 net-voip/telepathy-butterfly
 net-voip/telepathy-connection-managers
