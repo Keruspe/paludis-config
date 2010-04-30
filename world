@@ -40,7 +40,6 @@ gnome-extra/geoclue-properties
 gnome-extra/gnome-paint
 gnome-extra/nm-applet
 mail-client/evolution
-mail-client/mozilla-thunderbird
 media-fonts/artwiz-aleczapka-en
 media-fonts/freefonts
 media-fonts/libertine-ttf
@@ -91,7 +90,6 @@ sys-apps/lm_sensors
 sys-apps/lsb-release
 sys-apps/preload
 sys-apps/slocate
-sys-apps/sysvinit-utils
 sys-auth/nss-mdns
 sys-boot/grub
 sys-fs/cryptsetup
