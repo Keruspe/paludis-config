@@ -7,7 +7,6 @@ app-emulation/virt-manager
 app-emulation/wine
 app-misc/klavaro
 app-misc/tmux
-app-misc/tracker
 app-misc/vlock
 app-office/abiword
 app-office/dia
@@ -51,7 +50,6 @@ media-plugins/alsa-plugins
 media-plugins/gst-plugins-pulse
 media-sound/alsa-tools
 media-sound/ario
-media-sound/easytag
 media-sound/gnome-alsamixer
 media-sound/gpodder
 media-sound/id3v2
