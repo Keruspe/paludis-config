@@ -5,5 +5,9 @@ PATH="/usr/lib/ccache/bin:$PATH"
 CCACHE_DIR="/var/tmp/ccache"
 SANDBOX_WRITE="${SANDBOX_WRITE}:${CCACHE_DIR}"
 
-CFLAGS="-march=core2 -msse4 -maes -mpclmul -mpopcnt -mcx16 -msahf -mtune=core2 -O2 -pipe"
+CFLAGS="-march=native -O2 -pipe"
 CXXFLAGS="${CFLAGS}"
+
+if [[ "${CATEGORY}/${PN}" == "sys-apps/paludis" ]] ; then
+    CXXFLAGS="${CXXFLAGS} -g -ggdb -ggdb3"
+fi
