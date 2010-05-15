@@ -50,7 +50,6 @@ media-plugins/gst-plugins-pulse
 media-sound/ario
 media-sound/gnome-alsamixer
 media-sound/id3v2
-media-sound/mpc
 media-sound/mpd
 media-sound/padevchooser
 media-sound/paprefs
