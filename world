@@ -93,7 +93,6 @@ sys-fs/lvm2
 sys-fs/mtools
 sys-fs/ntfs3g
 sys-kernel/module-rebuild
-sys-kernel/vanilla-sources
 sys-power/powertop
 sys-process/at
 sys-process/htop
