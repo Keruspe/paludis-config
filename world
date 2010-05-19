@@ -4,7 +4,6 @@ app-backup/nautilus-dropbox
 app-crypt/chntpw
 app-editors/gobby
 app-emulation/virt-manager
-app-emulation/wine
 app-misc/klavaro
 app-misc/tmux
 app-misc/vlock
@@ -104,3 +103,4 @@ www-client/links
 www-client/mozilla-firefox
 www-plugins/adobe-flash
 xorg
+gnome-extra/conduit
