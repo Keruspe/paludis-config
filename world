@@ -104,3 +104,5 @@ www-client/mozilla-firefox
 www-plugins/adobe-flash
 xorg
 gnome-extra/conduit
+media-libs/sdl-ttf
+x11-drivers/nvidia-drivers
