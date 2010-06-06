@@ -104,5 +104,8 @@ www-client/mozilla-firefox
 www-plugins/adobe-flash
 xorg
 gnome-extra/conduit
-media-libs/sdl-ttf
+net-im/emesene
+games-action/bomb-her-man
+app-emulation/wine
+app-doc/doxygen
 x11-drivers/nvidia-drivers
