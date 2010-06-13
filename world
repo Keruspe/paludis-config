@@ -2,6 +2,8 @@ app-accessibility/espeak
 app-admin/gnome-system-tools
 app-backup/nautilus-dropbox
 app-crypt/chntpw
+app-doc/doxygen
+app-doc/pms
 app-editors/gobby
 app-emulation/virt-manager
 app-misc/klavaro
@@ -22,6 +24,7 @@ dev-java/jad-bin
 dev-util/anjuta-extras
 dev-util/biew
 dev-util/ccache
+dev-util/geany
 dev-util/lafilefixer
 dev-util/meld
 dev-util/netbeans
@@ -31,9 +34,11 @@ dev-vcs/bzr
 dev-vcs/giggle
 dev-vcs/gitg
 dev-vcs/mercurial
+games-action/bomb-her-man
 games-fps/warsow
 gnome
 gnome-base/librsvg
+gnome-extra/conduit
 gnome-extra/geoclue-properties
 gnome-extra/gnome-paint
 gnome-extra/nm-applet
@@ -63,6 +68,7 @@ net-analyzer/wireshark
 net-dns/dnsmasq
 net-firewall/ebtables
 net-firewall/iptables
+net-im/emesene
 net-im/telepathy-mission-control
 net-misc/autossh
 net-misc/keychain
@@ -102,10 +108,5 @@ www-client/chromium
 www-client/links
 www-client/mozilla-firefox
 www-plugins/adobe-flash
+x11-terms/rxvt-unicode
 xorg
-gnome-extra/conduit
-net-im/emesene
-games-action/bomb-her-man
-app-emulation/wine
-app-doc/doxygen
-x11-drivers/nvidia-drivers
