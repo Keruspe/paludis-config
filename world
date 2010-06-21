@@ -25,6 +25,7 @@ dev-util/anjuta-extras
 dev-util/biew
 dev-util/ccache
 dev-util/geany
+dev-util/indent
 dev-util/lafilefixer
 dev-util/meld
 dev-util/netbeans
@@ -41,6 +42,7 @@ gnome-base/librsvg
 gnome-extra/conduit
 gnome-extra/geoclue-properties
 gnome-extra/gnome-paint
+gnome-extra/gpointing-device-settings
 gnome-extra/nm-applet
 media-fonts/artwiz-aleczapka-en
 media-fonts/freefonts
