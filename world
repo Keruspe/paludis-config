@@ -109,6 +109,6 @@ sys-utils
 www-client/chromium
 www-client/links
 www-client/mozilla-firefox
+www-plugins/adobe-flash
 www-plugins/moonlight
-x11-terms/rxvt-unicode
 xorg

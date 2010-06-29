@@ -1,6 +1,6 @@
 CHOST="x86_64-pc-linux-gnu"
 MAKEOPTS="-j5"
-CFLAGS="-march=native -O2 -pipe"
+CFLAGS="-march=native -O2 -pipe -g"
 CXXFLAGS="${CFLAGS}"
 LDFLAGS="-Wl,-O2"
 
@@ -9,7 +9,7 @@ CCACHE_DIR="/var/tmp/ccache"
 SANDBOX_WRITE="${SANDBOX_WRITE}:${CCACHE_DIR}"
 
 if [[ "${CATEGORY}/${PN}" == "sys-apps/paludis" ]] ; then
-    CXXFLAGS="${CXXFLAGS} -g -ggdb -ggdb3"
+    CXXFLAGS="${CXXFLAGS} -ggdb -ggdb3"
 fi
 
 if [[ "${CATEGORY}/${PN}" == "dev-python/docutils" ]] ; then
