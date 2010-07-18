@@ -4,7 +4,6 @@ app-backup/nautilus-dropbox
 app-crypt/chntpw
 app-doc/doxygen
 app-doc/pms
-app-editors/gobby
 app-emulation/virt-manager
 app-misc/klavaro
 app-misc/tmux
@@ -14,16 +13,14 @@ app-office/dia
 app-office/gnumeric
 app-paludis/paludis-scripts
 app-paludis/plop
-app-pda/gtkpod
 app-shells/zsh-completion
 app-text/texlive
 app-text/wgetpaste
 desktop-utils
 dev-db/mysql-workbench
 dev-java/jad-bin
-dev-util/anjuta-extras
 dev-util/biew
-dev-util/ccache
+dev-util/eclipse-sdk
 dev-util/geany
 dev-util/indent
 dev-util/lafilefixer
@@ -42,7 +39,6 @@ gnome-base/librsvg
 gnome-extra/conduit
 gnome-extra/geoclue-properties
 gnome-extra/gnome-paint
-gnome-extra/gpointing-device-settings
 gnome-extra/nm-applet
 media-fonts/artwiz-aleczapka-en
 media-fonts/freefonts
@@ -71,6 +67,7 @@ net-dns/dnsmasq
 net-firewall/ebtables
 net-firewall/iptables
 net-im/emesene
+net-im/skype
 net-im/telepathy-mission-control
 net-misc/autossh
 net-misc/keychain
@@ -111,4 +108,9 @@ www-client/links
 www-client/mozilla-firefox
 www-plugins/adobe-flash
 www-plugins/moonlight
+www-plugins/nspluginwrapper
 xorg
+app-editors/gobby
+gnome-extra/gpointing-device-settings
+x11-terms/gnome-terminal
+app-emulation/emul-linux-x86-gtklibs

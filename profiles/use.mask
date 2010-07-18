@@ -1,3 +1,4 @@
+-clutter
 -gtk3
 -introspection
 -ruby_targets_ruby19
