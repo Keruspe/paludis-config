@@ -100,3 +100,4 @@ app-editors/gobby
 x11-terms/gnome-terminal
 app-emulation/emul-linux-x86-gtklibs
 www-plugins/adobe-flash
+dev-util/valgrind
