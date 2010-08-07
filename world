@@ -4,6 +4,8 @@ app-backup/nautilus-dropbox
 app-crypt/chntpw
 app-doc/doxygen
 app-doc/pms
+app-editors/gobby
+app-emulation/emul-linux-x86-gtklibs
 app-emulation/virt-manager
 app-misc/klavaro
 app-misc/tmux
@@ -24,6 +26,7 @@ dev-util/geany
 dev-util/indent
 dev-util/meld
 dev-util/netbeans
+dev-util/valgrind
 dev-vcs/bzr
 dev-vcs/giggle
 dev-vcs/gitg
@@ -60,6 +63,7 @@ net-firewall/ebtables
 net-firewall/iptables
 net-im/emesene
 net-im/skype
+net-libs/telepathy-glib
 net-misc/autossh
 net-misc/keychain
 net-misc/networkmanager-openvpn
@@ -78,6 +82,7 @@ sys-apps/slocate
 sys-apps/systemd
 sys-auth/nss-mdns
 sys-boot/grub
+sys-devel/gdb
 sys-fs/dosfstools
 sys-fs/hfsutils
 sys-fs/lvm2
@@ -91,13 +96,10 @@ sys-process/lsof
 sys-process/vixie-cron
 sys-utils
 www-client/chromium
+www-client/firefox
 www-client/links
-www-client/mozilla-firefox
+www-plugins/adobe-flash
 www-plugins/moonlight
 www-plugins/nspluginwrapper
-xorg
-app-editors/gobby
 x11-terms/gnome-terminal
-app-emulation/emul-linux-x86-gtklibs
-www-plugins/adobe-flash
-dev-util/valgrind
+xorg

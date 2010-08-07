@@ -2,7 +2,7 @@ CHOST="x86_64-pc-linux-gnu"
 MAKEOPTS="-j5"
 CFLAGS="-march=native -O2 -pipe -g -ggdb"
 CXXFLAGS="${CFLAGS}"
-LDFLAGS="-Wl,-O2 -Wl,--as-needed"
+LDFLAGS="${LDFLAGS} -Wl,-O2"
 
 if [[ "${CATEGORY}/${PN}" == "sys-apps/paludis" ]] ; then
     CXXFLAGS="${CXXFLAGS} -ggdb3"
