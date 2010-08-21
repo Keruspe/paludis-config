@@ -26,9 +26,9 @@ dev-util/geany
 dev-util/indent
 dev-util/meld
 dev-util/netbeans
+dev-util/strace
 dev-util/valgrind
 dev-vcs/bzr
-dev-vcs/giggle
 dev-vcs/gitg
 games-action/bomb-her-man
 games-fps/warsow
@@ -47,7 +47,6 @@ media-plugins/alsa-plugins
 media-plugins/gst-plugins-pulse
 media-sound/ario
 media-sound/gnome-alsamixer
-media-sound/id3v2
 media-sound/padevchooser
 media-sound/paprefs
 media-sound/pavucontrol
@@ -73,7 +72,6 @@ net-p2p/vuze
 net-voip/telepathy-connection-managers
 net-wireless/aircrack-ng
 net-wireless/broadcom-sta
-sys-apps/gdisk
 sys-apps/gnome-disk-utility
 sys-apps/lm_sensors
 sys-apps/lsb-release
@@ -95,7 +93,6 @@ sys-process/htop
 sys-process/lsof
 sys-process/vixie-cron
 sys-utils
-www-client/chromium
 www-client/firefox
 www-client/links
 www-plugins/adobe-flash
