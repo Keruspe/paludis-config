@@ -5,7 +5,6 @@ app-crypt/chntpw
 app-doc/doxygen
 app-doc/pms
 app-editors/gobby
-app-emulation/emul-linux-x86-gtklibs
 app-emulation/virt-manager
 app-misc/klavaro
 app-misc/tmux
@@ -61,7 +60,6 @@ net-dns/dnsmasq
 net-firewall/ebtables
 net-firewall/iptables
 net-im/emesene
-net-im/skype
 net-libs/telepathy-glib
 net-misc/autossh
 net-misc/keychain
@@ -95,8 +93,6 @@ sys-process/vixie-cron
 sys-utils
 www-client/firefox
 www-client/links
-www-plugins/adobe-flash
 www-plugins/moonlight
-www-plugins/nspluginwrapper
 x11-terms/gnome-terminal
 xorg
