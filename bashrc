@@ -11,3 +11,4 @@ fi
 if [[ "${CATEGORY}/${PN}" == "dev-python/docutils" ]] ; then
     LC_ALL="fr_FR.UTF-8"
 fi
+

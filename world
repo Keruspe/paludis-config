@@ -18,6 +18,7 @@ app-shells/zsh-completion
 app-text/texlive
 app-text/wgetpaste
 desktop-utils
+dev-db/mongodb
 dev-db/mysql-workbench
 dev-java/jad-bin
 dev-util/biew
@@ -64,9 +65,7 @@ net-libs/telepathy-glib
 net-misc/autossh
 net-misc/keychain
 net-misc/networkmanager-openvpn
-net-misc/pino
 net-misc/telnet-bsd
-net-p2p/vuze
 net-voip/telepathy-connection-managers
 net-wireless/aircrack-ng
 net-wireless/broadcom-sta
@@ -93,6 +92,7 @@ sys-process/vixie-cron
 sys-utils
 www-client/firefox
 www-client/links
+www-plugins/gnash
 www-plugins/moonlight
 x11-terms/gnome-terminal
 xorg
