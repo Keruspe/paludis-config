@@ -23,6 +23,7 @@ dev-db/mysql-workbench
 dev-java/jad-bin
 dev-util/biew
 dev-util/geany
+dev-util/geany-plugins
 dev-util/indent
 dev-util/meld
 dev-util/netbeans
@@ -65,6 +66,7 @@ net-libs/telepathy-glib
 net-misc/autossh
 net-misc/keychain
 net-misc/networkmanager-openvpn
+net-misc/pino
 net-misc/telnet-bsd
 net-voip/telepathy-connection-managers
 net-wireless/aircrack-ng
@@ -92,7 +94,7 @@ sys-process/vixie-cron
 sys-utils
 www-client/firefox
 www-client/links
-www-plugins/gnash
-www-plugins/moonlight
+www-client/midori
+www-plugins/adobe-flash
 x11-terms/gnome-terminal
 xorg
