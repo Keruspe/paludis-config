@@ -67,6 +67,7 @@ net-misc/autossh
 net-misc/keychain
 net-misc/networkmanager-openvpn
 net-misc/pino
+net-misc/proxychains
 net-misc/telnet-bsd
 net-voip/telepathy-connection-managers
 net-wireless/aircrack-ng
@@ -74,8 +75,8 @@ net-wireless/broadcom-sta
 sys-apps/gnome-disk-utility
 sys-apps/lm_sensors
 sys-apps/lsb-release
+sys-apps/mlocate
 sys-apps/preload
-sys-apps/slocate
 sys-apps/systemd
 sys-auth/nss-mdns
 sys-boot/grub
