@@ -4,11 +4,11 @@ CFLAGS="-march=native -O2 -pipe -g -ggdb"
 CXXFLAGS="${CFLAGS}"
 LDFLAGS="${LDFLAGS} -Wl,-O2"
 
-if [[ "${CATEGORY}/${PN}" == "sys-apps/paludis" ]] ; then
-    CXXFLAGS="${CXXFLAGS} -ggdb3"
-fi
-
-if [[ "${CATEGORY}/${PN}" == "dev-python/docutils" ]] ; then
-    LC_ALL="fr_FR.UTF-8"
-fi
-
+case "${CATEGORY}/${PN}" in
+	"sys-apps/paludis")
+		CXXFLAGS="${CXXFLAGS} -ggdb3"
+		;;
+	"dev-python/docutils")
+		LC_ALL="fr_FR.UTF-8"
+		;;
+esac

@@ -8,6 +8,7 @@ app-editors/gobby
 app-emulation/virt-manager
 app-misc/klavaro
 app-misc/tmux
+app-misc/vcp
 app-misc/vlock
 app-office/abiword
 app-office/dia
@@ -54,7 +55,6 @@ media-sound/pavucontrol
 media-sound/pavumeter
 media-sound/rhythmbox
 media-video/gnome-mplayer
-media-video/vlc
 net-analyzer/ettercap
 net-analyzer/nmap
 net-analyzer/wireshark
