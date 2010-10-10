@@ -20,7 +20,6 @@ app-text/texlive
 app-text/wgetpaste
 desktop-utils
 dev-db/mongodb
-dev-db/mysql-workbench
 dev-java/jad-bin
 dev-util/biew
 dev-util/geany
@@ -44,6 +43,7 @@ media-fonts/libertine-ttf
 media-fonts/unifont
 media-gfx/fbida
 media-gfx/xsane
+media-gfx/yed
 media-libs/win32codecs
 media-plugins/alsa-plugins
 media-plugins/gst-plugins-pulse
