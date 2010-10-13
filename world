@@ -72,6 +72,9 @@ net-misc/telnet-bsd
 net-voip/telepathy-connection-managers
 net-wireless/aircrack-ng
 net-wireless/broadcom-sta
+sci-electronics/logisim
+sci-misc/autosim
+sci-misc/grammar-editor
 sys-apps/gnome-disk-utility
 sys-apps/lm_sensors
 sys-apps/lsb-release
