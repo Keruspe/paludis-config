@@ -21,6 +21,7 @@ app-text/wgetpaste
 desktop-utils
 dev-db/mongodb
 dev-java/jad-bin
+dev-lang/swi-prolog
 dev-util/biew
 dev-util/geany
 dev-util/geany-plugins
