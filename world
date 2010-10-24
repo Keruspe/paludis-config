@@ -102,4 +102,5 @@ www-client/links
 www-client/midori
 www-plugins/adobe-flash
 x11-terms/gnome-terminal
+x11-terms/rxvt-unicode
 xorg
