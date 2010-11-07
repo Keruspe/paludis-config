@@ -11,6 +11,9 @@ case "${CATEGORY}/${PN}" in
 	"dev-python/docutils")
 		LC_ALL="fr_FR.UTF-8"
 		;;
+	"x11-drivers/xf86-video-nouveau")
+		EGIT_COMMIT=4f42
+		;;
 	"net-libs/neon")
 		LDFLAGS="${LDFLAGS} -lgcrypt"
 		;;
