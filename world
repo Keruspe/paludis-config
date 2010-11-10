@@ -4,7 +4,6 @@ app-backup/nautilus-dropbox
 app-crypt/chntpw
 app-doc/doxygen
 app-doc/pms
-app-editors/gobby
 app-emulation/virt-manager
 app-misc/klavaro
 app-misc/tmux
@@ -14,6 +13,7 @@ app-office/abiword
 app-office/dia
 app-office/gnumeric
 app-paludis/paludis-scripts
+app-paludis/palumaj
 app-paludis/plop
 app-shells/zsh-completion
 app-text/texlive
@@ -21,6 +21,7 @@ app-text/wgetpaste
 desktop-utils
 dev-db/mongodb
 dev-java/jad-bin
+dev-java/maven-bin
 dev-lang/swi-prolog
 dev-util/biew
 dev-util/geany
@@ -100,6 +101,7 @@ www-client/firefox
 www-client/links
 www-client/midori
 www-plugins/adobe-flash
+x11-base/wayland
 x11-terms/gnome-terminal
 x11-terms/sakura
 xorg
