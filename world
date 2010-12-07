@@ -4,6 +4,7 @@ app-backup/nautilus-dropbox
 app-crypt/chntpw
 app-doc/doxygen
 app-doc/pms
+app-emulation/mars
 app-emulation/virt-manager
 app-misc/klavaro
 app-misc/tmux
@@ -30,7 +31,6 @@ dev-util/meld
 dev-util/netbeans
 dev-util/strace
 dev-util/valgrind
-dev-vcs/gitg
 games-action/bomb-her-man
 gnome
 gnome-extra/conduit
@@ -40,7 +40,6 @@ gnome-extra/nm-applet
 media-fonts/freefonts
 media-fonts/libertine-ttf
 media-fonts/unifont
-media-gfx/xsane
 media-gfx/yed
 media-libs/win32codecs
 media-plugins/alsa-plugins
@@ -50,18 +49,17 @@ media-sound/gnome-alsamixer
 media-sound/paprefs
 media-sound/pavucontrol
 media-sound/pavumeter
-media-sound/rhythmbox
 media-video/gnome-mplayer
 net-analyzer/nmap
 net-analyzer/wireshark
 net-dns/dnsmasq
 net-firewall/ebtables
 net-firewall/iptables
+net-irc/irssi
 net-libs/telepathy-glib
 net-misc/autossh
 net-misc/keychain
 net-misc/networkmanager-openvpn
-net-misc/pino
 net-misc/proxychains
 net-misc/telnet-bsd
 net-voip/telepathy-connection-managers
@@ -83,7 +81,6 @@ sys-fs/dosfstools
 sys-fs/hfsutils
 sys-fs/lvm2
 sys-fs/mtools
-sys-fs/ntfs3g
 sys-kernel/module-rebuild
 sys-power/powertop
 sys-process/at
@@ -93,9 +90,8 @@ sys-process/vixie-cron
 sys-utils
 www-client/firefox
 www-client/links
-www-client/midori
+www-client/opera
 www-plugins/adobe-flash
 x11-base/wayland
-x11-terms/gnome-terminal
 x11-terms/sakura
 xorg
