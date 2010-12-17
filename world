@@ -49,6 +49,7 @@ media-sound/gnome-alsamixer
 media-sound/paprefs
 media-sound/pavucontrol
 media-sound/pavumeter
+media-sound/rhythmbox
 media-video/gnome-mplayer
 net-analyzer/nmap
 net-analyzer/wireshark
@@ -81,7 +82,6 @@ sys-fs/dosfstools
 sys-fs/hfsutils
 sys-fs/lvm2
 sys-fs/mtools
-sys-kernel/module-rebuild
 sys-power/powertop
 sys-process/at
 sys-process/htop

@@ -11,7 +11,7 @@ case "${CATEGORY}/${PN}" in
 	"dev-python/docutils")
 		LC_ALL="fr_FR.UTF-8"
 		;;
-	"net-libs/neon")
+	"net-libs/neon"|"gnome-base/gnome-vfs")
 		LDFLAGS="${LDFLAGS} -lgcrypt"
 		;;
 esac
