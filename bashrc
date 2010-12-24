@@ -14,5 +14,8 @@ case "${CATEGORY}/${PN}" in
 	"net-libs/neon"|"gnome-base/gnome-vfs")
 		LDFLAGS="${LDFLAGS} -lgcrypt"
 		;;
+	"gnome-base/gnome-shell"|"gnome-base/gnome-settings-daemon"|"dev-libs/gobject-introspection"|"dev-libs/gjs")
+		CFLAGS+=" -g -ggdb3"
+		;;
 esac
 
