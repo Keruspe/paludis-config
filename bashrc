@@ -14,9 +14,9 @@ case "${CATEGORY}/${PN}" in
 	"net-libs/neon"|"gnome-base/gnome-vfs")
 		LDFLAGS="${LDFLAGS} -lgcrypt"
 		;;
-	"gnome-base/gnome-desktop"|"gnome-base/gnome-shell"|"gnome-base/gnome-settings-daemon"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"dev-libs/glib"|"x11-libs/gtk+"|"x11-wm/mutter")
-		CFLAGS+=" -g -ggdb3 -O0"
-		;;
+#	"gnome-base/gnome-desktop"|"gnome-base/gnome-shell"|"gnome-base/gnome-settings-daemon"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"dev-libs/glib"|"x11-libs/gtk+"|"x11-wm/mutter")
+#		CFLAGS+=" -g -ggdb3 -O0"
+#		;;
 	"media-sound/rhythmbox")
 		EGIT_BRANCH=gobject-introspection
 		;;
