@@ -17,8 +17,8 @@ case "${CATEGORY}/${PN}" in
 	#"gnome-base/gnome-shell"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"x11-wm/mutter")
 	#	CFLAGS+=" -g -ggdb3 -O0"
 	#	;;
-	"media-sound/rhythmbox")
-		EGIT_BRANCH=gobject-introspection
-		;;
+    "net-libs/xulrunner"|"www-client/firefox")
+        WANT_MP=y
+        ;;
 esac
 
