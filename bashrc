@@ -14,15 +14,12 @@ case "${CATEGORY}/${PN}" in
 	"net-libs/neon"|"gnome-base/gnome-vfs")
 		LDFLAGS+=" -lgcrypt"
 		;;
-#	"gnome-base/gnome-shell"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"x11-wm/mutter"|"net-libs/xulrunner")
+#	"gnome-base/gnome-shell"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"x11-wm/mutter")
 #		CFLAGS+=" -g -ggdb3 -O0"
-#		CXXFLAGS+=" -g -ggdb3 -O0"
 #		;;
     "net-libs/xulrunner"|"www-client/firefox")
         WANT_MP=y
-        ;;
-   "net-misc/networkmanager"|"gnome-extra/nm-applet")
-        EGIT_BRANCH="rm-userset"
+#		CXXFLAGS+=" -g -ggdb3 -O0"
         ;;
 esac
 
