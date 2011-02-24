@@ -11,7 +11,7 @@ case "${CATEGORY}/${PN}" in
 	"dev-python/docutils")
 		LC_ALL="fr_FR.UTF-8"
 		;;
-	"net-libs/neon"|"gnome-base/gnome-vfs")
+	"net-libs/neon")
 		LDFLAGS+=" -lgcrypt"
 		;;
 #	"gnome-base/gnome-shell"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"x11-wm/mutter")
