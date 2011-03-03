@@ -1,7 +1,8 @@
 CHOST="x86_64-pc-linux-gnu"
 MAKEOPTS="-j5"
-CFLAGS+=" -march=native -O2 -pipe"
-CXXFLAGS+=" -march=native -O2 -pipe"
+CUSTOM_CFLAGS="-march=native -O3 -pipe"
+CFLAGS+=" ${CUSTOM_CFLAGS}"
+CXXFLAGS+=" ${CUSTOM_CFLAGS}"
 LDFLAGS+=" -Wl,-O2"
 
 case "${CATEGORY}/${PN}" in
