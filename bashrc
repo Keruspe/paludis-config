@@ -1,5 +1,5 @@
 CHOST="x86_64-pc-linux-gnu"
-MAKEOPTS="-j5"
+MAKEOPTS="-j9"
 CUSTOM_CFLAGS="-march=native -O3 -pipe"
 CFLAGS+=" ${CUSTOM_CFLAGS}"
 CXXFLAGS+=" ${CUSTOM_CFLAGS}"
