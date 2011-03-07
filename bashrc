@@ -19,8 +19,9 @@ case "${CATEGORY}/${PN}" in
 #        CFLAGS+=" -g -ggdb3 -O0"
 #        ;;
     "net-libs/xulrunner"|"www-client/firefox")
-        WANT_MP=y
-        CXXFLAGS+=" -g -ggdb3 -O0"
+        WANT_MP="true"
+	CXXFLAGS+=" -mno-avx"
+#        CXXFLAGS+=" -g -ggdb3 -O0"
         ;;
 esac
 
