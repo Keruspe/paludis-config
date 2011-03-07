@@ -20,7 +20,7 @@ case "${CATEGORY}/${PN}" in
 #        ;;
     "net-libs/xulrunner"|"www-client/firefox")
         WANT_MP=y
-#        CXXFLAGS+=" -g -ggdb3 -O0"
+        CXXFLAGS+=" -g -ggdb3 -O0"
         ;;
 esac
 
