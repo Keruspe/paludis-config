@@ -9,9 +9,6 @@ case "${CATEGORY}/${PN}" in
     "sys-apps/paludis")
         CXXFLAGS+=" -g -ggdb3 -DHAVE_FFS"
         ;;
-    "dev-python/docutils")
-        LC_ALL="fr_FR.UTF-8"
-        ;;
     "net-libs/neon")
         LDFLAGS+=" -lgcrypt"
         ;;
