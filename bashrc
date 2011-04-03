@@ -7,7 +7,8 @@ LDFLAGS+=" -Wl,-O2"
 
 case "${CATEGORY}/${PN}" in
     "sys-apps/paludis")
-        CXXFLAGS+=" -g -ggdb3 -DHAVE_FFS"
+		LET_ME_RICE=yes
+        CXXFLAGS+=" -O3 -g -ggdb3 -DHAVE_FFS"
         ;;
 #    "gnome-base/gnome-shell"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"x11-wm/mutter")
 #        CFLAGS+=" -g -ggdb3 -O0"
