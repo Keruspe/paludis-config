@@ -10,6 +10,12 @@ case "${CATEGORY}/${PN}" in
 		LET_ME_RICE=yes
         CXXFLAGS+=" -O3 -g -ggdb3 -DHAVE_FFS"
         ;;
+    "net-libs/neon")
+		LDFLAGS+=" -lgcrypt"
+		;;
+	"dev-db/sqlite")
+		CFLAGS+=" -fno-fast-math"
+		;;
 #    "gnome-base/gnome-shell"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"x11-wm/mutter")
 #        CFLAGS+=" -g -ggdb3 -O0"
 #        ;;
