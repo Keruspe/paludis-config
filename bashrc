@@ -1,6 +1,6 @@
 CHOST="x86_64-pc-linux-gnu"
 MAKEOPTS="-j9"
-CUSTOM_CFLAGS="-march=native -O3 -pipe"
+CUSTOM_CFLAGS="-march=native -Ofast -pipe"
 CFLAGS+=" ${CUSTOM_CFLAGS}"
 CXXFLAGS+=" ${CUSTOM_CFLAGS}"
 LDFLAGS+=" -Wl,-O2"
