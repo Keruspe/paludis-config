@@ -15,10 +15,5 @@ case "${CATEGORY}/${PN}" in
 #    "gnome-base/gnome-shell"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"x11-wm/mutter")
 #        CFLAGS+=" -g -ggdb3 -O0"
 #        ;;
-    "net-libs/xulrunner"|"www-client/firefox")
-        WANT_MP="true"
-        CXXFLAGS+=" -mno-avx"
-#        CXXFLAGS+=" -g -ggdb3 -O0"
-        ;;
 esac
 
