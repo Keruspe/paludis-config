@@ -12,9 +12,6 @@ case "${CATEGORY}/${PN}" in
     "net-libs/neon")
         LDFLAGS+=" -lgcrypt"
         ;;
-    "dev-libs/glib")
-        EGIT_COMMIT="ce9681b87e64a53a35a3db25cdbc406f46e91602"
-        ;;
 #    "gnome-base/gnome-shell"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"x11-wm/mutter")
 #        CFLAGS+=" -g -ggdb3 -O0"
 #        ;;
