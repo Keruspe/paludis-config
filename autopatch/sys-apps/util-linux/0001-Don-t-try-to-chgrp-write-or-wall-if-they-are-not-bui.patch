@@ -1,0 +1,34 @@
+From 9fa9638ff6f9b237b2917f26f50030c2272aff36 Mon Sep 17 00:00:00 2001
+From: Marc-Antoine Perennou <Marc-Antoine@Perennou.com>
+Date: Thu, 30 Jun 2011 02:11:00 +0200
+Subject: [PATCH] Don't try to chgrp write or wall if they are not built
+
+Signed-off-by: Marc-Antoine Perennou <Marc-Antoine@Perennou.com>
+---
+ term-utils/Makefile.am |   10 ++++++++--
+ 1 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/term-utils/Makefile.am b/term-utils/Makefile.am
+index 5e03560..d5ba479 100644
+--- a/term-utils/Makefile.am
++++ b/term-utils/Makefile.am
+@@ -67,8 +67,14 @@ endif
+ if USE_TTY_GROUP
+ if MAKEINSTALL_DO_CHOWN
+ install-exec-hook::
+-	chgrp tty $(DESTDIR)$(usrbin_execdir)/wall $(DESTDIR)$(usrbin_execdir)/write
+-	chmod g+s $(DESTDIR)$(usrbin_execdir)/wall $(DESTDIR)$(usrbin_execdir)/write
++if BUILD_WALL
++	chgrp tty $(DESTDIR)$(usrbin_execdir)/wall
++	chmod g+s $(DESTDIR)$(usrbin_execdir)/wall
++endif
++if BUILD_WRITE
++	chgrp tty $(DESTDIR)$(usrbin_execdir)/write
++	chmod g+s $(DESTDIR)$(usrbin_execdir)/write
++endif
+ 
+ endif
+ endif
+-- 
+1.7.6.134.gcf13f6.dirty
+
