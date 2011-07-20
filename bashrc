@@ -12,6 +12,15 @@ case "${CATEGORY}/${PN}" in
     "net-libs/neon")
         LDFLAGS+=" -lgcrypt"
         ;;
+    "app-admin/logrotate")
+        CFLAGS+=" -O0"
+        ;;
+#    "gnome-base/gdm")
+#        EGIT_BRANCH="wip/shell-greeter"
+#        ;;
+#    "gnome-base/gnome-shell")
+#        EGIT_BRANCH="wip/gdm-shell"
+#        ;;
 #    "gnome-base/gnome-shell"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"x11-wm/mutter")
 #        CFLAGS+=" -g -ggdb3 -O0"
 #        ;;
