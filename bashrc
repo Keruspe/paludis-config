@@ -12,9 +12,6 @@ case "${CATEGORY}/${PN}" in
     "net-libs/neon")
         LDFLAGS+=" -lgcrypt"
         ;;
-    "app-admin/logrotate")
-        CFLAGS+=" -O0"
-        ;;
 #    "gnome-base/gdm")
 #        EGIT_BRANCH="wip/shell-greeter"
 #        ;;
