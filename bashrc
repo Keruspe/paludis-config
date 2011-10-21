@@ -12,16 +12,11 @@ case "${CATEGORY}/${PN}" in
     "net-libs/neon")
         LDFLAGS+=" -lgcrypt"
         ;;
-    "dev-libs/glib"|"dev-util/gdbus-codegen")
-        EGIT_BRANCH="glib-2-30"
-        ;;
     "media-libs/clutter")
         EGIT_BRANCH="clutter-1.8"
         ;;
     "media-libs/cogl")
         EGIT_BRANCH="cogl-1.8"
-#    "gnome-base/gnome-shell"|"dev-libs/gobject-introspection"|"dev-libs/gjs"|"x11-wm/mutter")
-#        CFLAGS+=" -g -ggdb3 -O0"
-#        ;;
+        ;;
 esac
 
