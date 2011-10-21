@@ -1,0 +1,24 @@
+From f4425726f272c62aaccce887f17477fe0881a75c Mon Sep 17 00:00:00 2001
+From: Marc-Antoine Perennou <Marc-Antoine@Perennou.com>
+Date: Fri, 21 Oct 2011 11:56:02 +0200
+Subject: [PATCH] Tmp fix
+
+---
+ src/Makefile-sushi.am |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
+
+diff --git a/src/Makefile-sushi.am b/src/Makefile-sushi.am
+index feca2db..37f3a36 100644
+--- a/src/Makefile-sushi.am
++++ b/src/Makefile-sushi.am
+@@ -3,7 +3,6 @@ sushi_cflags = \
+     -DPREFIX=\"$(prefix)\" \
+     -DLIBDIR=\"$(libdir)\" \
+     -DG_LOG_DOMAIN=\"Sushi\" \
+-    -DG_DISABLE_DEPRECATED \
+     $(SUSHI_CFLAGS)
+ 
+ sushi_built_sources = \
+-- 
+1.7.7.419.g87009.dirty
+

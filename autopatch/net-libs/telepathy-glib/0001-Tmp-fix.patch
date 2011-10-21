@@ -1,0 +1,25 @@
+From ba8619e3cce999ca17bf90af007f494bc215878e Mon Sep 17 00:00:00 2001
+From: Marc-Antoine Perennou <Marc-Antoine@Perennou.com>
+Date: Fri, 21 Oct 2011 12:39:25 +0200
+Subject: [PATCH] Tmp fix
+
+---
+ configure.ac |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index fd77508..1ce2993 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -78,7 +78,7 @@ ifelse(tp_glib_nano_version, 0,
+     [ official_release=yes ],
+     [ official_release=no ])
+ 
+-TP_COMPILER_WARNINGS([ERROR_CFLAGS], [test "x$official_release" = xno],
++TP_COMPILER_WARNINGS([ERROR_CFLAGS], [false],
+   [all \
+    extra \
+    declaration-after-statement \
+-- 
+1.7.7.419.g87009.dirty
+
