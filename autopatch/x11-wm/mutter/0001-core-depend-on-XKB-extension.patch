@@ -1,0 +1,478 @@
+From 6efbc3a5f9a07fe9d3692367f807cdf9f089bd69 Mon Sep 17 00:00:00 2001
+From: Marc-Antoine Perennou <Marc-Antoine@Perennou.com>
+Date: Tue, 13 Dec 2011 16:23:23 +0100
+Subject: [PATCH] core: depend on XKB extension
+
+Upstream decided to deprecate XKeycodeToKeysym in commit
+http://cgit.freedesktop.org/xorg/lib/libX11/commit/?id=f2651e03f3295a453a2965c3749bc8b6e66f1c09
+
+The alternative they suggest is XkbKeycodeToKeysym, which requires XKB to be support
+
+Given we already depend on recent X components for composition and so on, it would
+not be bad to depend on unconditionally on XKB.
+
+Signed-off-by: Marc-Antoine Perennou <Marc-Antoine@Perennou.com>
+---
+ configure.in                 |    5 +-
+ src/core/above-tab-keycode.c |    8 ---
+ src/core/bell.c              |   51 ++++++---------------
+ src/core/bell.h              |   12 +----
+ src/core/display-private.h   |    2 -
+ src/core/display.c           |   19 ++++----
+ src/core/keybindings.c       |  106 ++++++------------------------------------
+ 7 files changed, 42 insertions(+), 161 deletions(-)
+
+diff --git a/configure.in b/configure.in
+index 1c8c89e..57bb170 100644
+--- a/configure.in
++++ b/configure.in
+@@ -306,8 +306,9 @@ AC_CHECK_LIB(X11, XkbQueryExtension,
+                                 found_xkb=yes)],
+ 	, $ALL_X_LIBS)
+ 
+-if test "x$found_xkb" = "xyes"; then
+-   AC_DEFINE(HAVE_XKB, , [Have keyboard extension library])
++if test "x$found_xkb" = "xno"; then
++   AC_MSG_ERROR([Keyboard extension library not found])
++   exit 1
+ fi
+ 
+ 
+diff --git a/src/core/above-tab-keycode.c b/src/core/above-tab-keycode.c
+index 856afe5..028a4ba 100644
+--- a/src/core/above-tab-keycode.c
++++ b/src/core/above-tab-keycode.c
+@@ -49,7 +49,6 @@
+ 
+ #include <X11/keysym.h>
+ 
+-#ifdef HAVE_XKB
+ #include <X11/XKBlib.h>
+ #include <X11/extensions/XKBgeom.h>
+ 
+@@ -222,13 +221,6 @@ compute_above_tab_keycode (Display *xdisplay)
+ 
+   return best_keycode;
+ }
+-#else /* !HAVE_XKB */
+-static guint
+-compute_above_tab_keycode (Display *xdisplay)
+-{
+-  return XKeysymToKeycode (xdisplay, XK_grave);
+-}
+-#endif /* HAVE_XKB */
+ 
+ guint
+ meta_display_get_above_tab_keycode (MetaDisplay *display)
+diff --git a/src/core/bell.c b/src/core/bell.c
+index dbb2188..384a5ab 100644
+--- a/src/core/bell.c
++++ b/src/core/bell.c
+@@ -146,7 +146,6 @@ bell_flash_screen (MetaDisplay *display,
+  * \param display  The display the event came in on
+  * \param xkb_ev   The bell event
+  */
+-#ifdef HAVE_XKB
+ static void
+ bell_flash_fullscreen (MetaDisplay *display, 
+                        XkbAnyEvent *xkb_ev)
+@@ -336,12 +335,10 @@ meta_bell_notify (MetaDisplay *display,
+     }
+ #endif /* HAVE_LIBCANBERRA */
+ }
+-#endif /* HAVE_XKB */
+ 
+ void
+ meta_bell_set_audible (MetaDisplay *display, gboolean audible)
+ {
+-#ifdef HAVE_XKB
+ #ifdef HAVE_LIBCANBERRA
+   /* When we are playing sounds using libcanberra support, we handle the
+    * bell whether its an audible bell or a visible bell */
+@@ -354,56 +351,36 @@ meta_bell_set_audible (MetaDisplay *display, gboolean audible)
+                             XkbUseCoreKbd,
+                             XkbAudibleBellMask,
+                             enable_system_bell ? XkbAudibleBellMask : 0);
+-#endif /* HAVE_XKB */
+ }
+ 
+-gboolean
++void
+ meta_bell_init (MetaDisplay *display)
+ {
+-#ifdef HAVE_XKB
+-  int xkb_base_error_type, xkb_opcode;
+-
+-  if (!XkbQueryExtension (display->xdisplay, &xkb_opcode, 
+-			  &display->xkb_base_event_type, 
+-			  &xkb_base_error_type, 
+-			  NULL, NULL))
+-    {
+-      display->xkb_base_event_type = -1;
+-      g_message ("could not find XKB extension.");
+-      return FALSE;
+-    }
+-  else 
++  unsigned int mask = XkbBellNotifyMask;
++  gboolean visual_bell_auto_reset = FALSE;
++  /* TRUE if and when non-broken version is available */
++  XkbSelectEvents (display->xdisplay,
++                   XkbUseCoreKbd,
++                   XkbBellNotifyMask,
++                   XkbBellNotifyMask);
++  meta_bell_set_audible (display, meta_prefs_bell_is_audible ());
++  if (visual_bell_auto_reset)
+     {
+-      unsigned int mask = XkbBellNotifyMask;
+-      gboolean visual_bell_auto_reset = FALSE; 
+-      /* TRUE if and when non-broken version is available */
+-      XkbSelectEvents (display->xdisplay,
+-		       XkbUseCoreKbd,
+-		       XkbBellNotifyMask,
+-		       XkbBellNotifyMask);
+-      meta_bell_set_audible (display, meta_prefs_bell_is_audible ());
+-      if (visual_bell_auto_reset) {
+-	XkbSetAutoResetControls (display->xdisplay,
+-				 XkbAudibleBellMask,
+-				 &mask,
+-				 &mask);
+-      }
+-      return TRUE;
++      XkbSetAutoResetControls (display->xdisplay,
++                               XkbAudibleBellMask,
++                               &mask,
++                               &mask);
+     }
+-#endif
+-  return FALSE;
+ }
+ 
+ void
+ meta_bell_shutdown (MetaDisplay *display)
+ {
+-#ifdef HAVE_XKB
+   /* TODO: persist initial bell state in display, reset here */
+   XkbChangeEnabledControls (display->xdisplay,
+ 			    XkbUseCoreKbd,
+ 			    XkbAudibleBellMask,
+ 			    XkbAudibleBellMask);
+-#endif
+ }
+ 
+ /**
+diff --git a/src/core/bell.h b/src/core/bell.h
+index 50f059f..7609c60 100644
+--- a/src/core/bell.h
++++ b/src/core/bell.h
+@@ -32,13 +32,10 @@
+  */
+ 
+ #include <X11/Xlib.h>
+-#ifdef HAVE_XKB
+ #include <X11/XKBlib.h>
+-#endif
+ #include "display-private.h"
+ #include "frame.h"
+ 
+-#ifdef HAVE_XKB
+ /**
+  * Gives the user some kind of visual bell; in fact, this is our response
+  * to any kind of bell request, but we set it up so that we only get
+@@ -50,7 +47,6 @@
+  * \param xkb_ev   The bell event we just received
+  */
+ void meta_bell_notify (MetaDisplay *display, XkbAnyEvent *xkb_ev);
+-#endif
+ 
+ /**
+  * Turns the bell to audible or visual. This tells X what to do, but
+@@ -70,12 +66,6 @@ void meta_bell_set_audible (MetaDisplay *display, gboolean audible);
+  * to send us bell notifications, and then also switching
+  * off the audible bell if we're using a visual one ourselves.
+  *
+- * Unlike most X extensions we use, we only initialise XKB here
+- * (rather than in main()). It's possible that XKB is not
+- * installed at all, but if that was known at build time
+- * we will have HAVE_XKB undefined, which will cause this
+- * function to be a no-op.
+- *
+  * \param display  The display which is opening
+  *
+  * \bug There is a line of code that's never run that tells
+@@ -84,7 +74,7 @@ void meta_bell_set_audible (MetaDisplay *display, gboolean audible);
+  * that XFree86's implementation is broken so we shouldn't
+  * call it, but that was in 2002. Is it working now?
+  */
+-gboolean meta_bell_init (MetaDisplay *display);
++void meta_bell_init (MetaDisplay *display);
+ 
+ /**
+  * Shuts down the bell subsystem.
+diff --git a/src/core/display-private.h b/src/core/display-private.h
+index 6db1b64..c1164c9 100644
+--- a/src/core/display-private.h
++++ b/src/core/display-private.h
+@@ -214,10 +214,8 @@ struct _MetaDisplay
+    */
+   int         sentinel_counter;
+ 
+-#ifdef HAVE_XKB
+   int         xkb_base_event_type;
+   guint32     last_bell_time;
+-#endif
+ #ifdef HAVE_XSYNC
+   /* alarm monitoring client's _NET_WM_SYNC_REQUEST_COUNTER */
+   XSyncAlarm  grab_sync_request_alarm;
+diff --git a/src/core/display.c b/src/core/display.c
+index f2dfd20..ca27e87 100644
+--- a/src/core/display.c
++++ b/src/core/display.c
+@@ -63,9 +63,7 @@
+ #ifdef HAVE_SHAPE
+ #include <X11/extensions/shape.h>
+ #endif
+-#ifdef HAVE_XKB
+ #include <X11/XKBlib.h>
+-#endif
+ #ifdef HAVE_XCURSOR
+ #include <X11/Xcursor/Xcursor.h>
+ #endif
+@@ -475,7 +473,7 @@ meta_display_open (void)
+   
+   /* FIXME copy the checks from GDK probably */
+   the_display->static_gravity_works = g_getenv ("MUTTER_USE_STATIC_GRAVITY") != NULL;
+-  
++
+   meta_bell_init (the_display);
+ 
+   meta_display_init_keys (the_display);
+@@ -545,9 +543,7 @@ meta_display_open (void)
+   the_display->grab_resize_timeout_id = 0;
+   the_display->grab_have_keyboard = FALSE;
+   
+-#ifdef HAVE_XKB  
+   the_display->last_bell_time = 0;
+-#endif
+ 
+   the_display->grab_op = META_GRAB_OP_NONE;
+   the_display->grab_window = NULL;
+@@ -558,6 +554,14 @@ meta_display_open (void)
+ 
+   the_display->grab_edge_resistance_data = NULL;
+ 
++  int xkb_base_error_type, xkb_opcode;
++
++  if (!XkbQueryExtension (the_display->xdisplay, &xkb_opcode,
++			  &the_display->xkb_base_event_type,
++			  &xkb_base_error_type,
++			  NULL, NULL))
++    g_error ("could not find XKB extension.");
++
+ #ifdef HAVE_XSYNC
+   {
+     int major, minor;
+@@ -2608,7 +2612,6 @@ event_callback (XEvent   *event,
+       }
+       break;
+     default:
+-#ifdef HAVE_XKB
+       if (event->type == display->xkb_base_event_type) 
+ 	{
+ 	  XkbAnyEvent *xkb_ev = (XkbAnyEvent *) event;
+@@ -2629,7 +2632,6 @@ event_callback (XEvent   *event,
+               break;
+ 	    }
+ 	}
+-#endif
+       break;
+     }
+ 
+@@ -2882,9 +2884,8 @@ key_event_description (Display *xdisplay,
+ {
+   KeySym keysym;
+   const char *str;
+-  
+-  keysym = XKeycodeToKeysym (xdisplay, event->xkey.keycode, 0);  
+ 
++  keysym = XkbKeycodeToKeysym (xdisplay, event->xkey.keycode, 0, 0);
+   str = XKeysymToString (keysym);
+   
+   return g_strdup_printf ("Key '%s' state 0x%x", 
+diff --git a/src/core/keybindings.c b/src/core/keybindings.c
+index 473110e..176d959 100644
+--- a/src/core/keybindings.c
++++ b/src/core/keybindings.c
+@@ -42,9 +42,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
+-#ifdef HAVE_XKB
+ #include <X11/XKBlib.h>
+-#endif
+ 
+ #define SCHEMA_COMMON_KEYBINDINGS "org.gnome.desktop.wm.keybindings"
+ #define SCHEMA_MUTTER_KEYBINDINGS "org.gnome.mutter.keybindings"
+@@ -673,7 +671,7 @@ meta_display_get_keybinding_action (MetaDisplay  *display,
+   MetaKeyBinding *binding;
+   KeySym keysym;
+ 
+-  keysym = XKeycodeToKeysym (display->xdisplay, keycode, 0);
++  keysym = XkbKeycodeToKeysym (display->xdisplay, keycode, 0, 0);
+   mask = mask & 0xff & ~display->ignored_modifier_mask;
+   binding = display_get_keybinding (display, keysym, keycode, mask);
+ 
+@@ -693,7 +691,6 @@ meta_display_process_mapping_event (MetaDisplay *display,
+   gboolean keymap_changed = FALSE;
+   gboolean modmap_changed = FALSE;
+ 
+-#ifdef HAVE_XKB
+   if (event->type == display->xkb_base_event_type)
+     {
+       meta_topic (META_DEBUG_KEYBINDINGS,
+@@ -702,9 +699,7 @@ meta_display_process_mapping_event (MetaDisplay *display,
+       keymap_changed = TRUE;
+       modmap_changed = TRUE;
+     }
+-  else
+-#endif
+-  if (event->xmapping.request == MappingModifier)
++  else if (event->xmapping.request == MappingModifier)
+     {
+       meta_topic (META_DEBUG_KEYBINDINGS,
+                   "Received MappingModifier event, will reload modmap and redo keybindings\n");
+@@ -1224,48 +1219,6 @@ is_modifier (MetaDisplay *display,
+  * mod5 = 7
+  */
+ 
+-static gboolean 
+-is_specific_modifier (MetaDisplay *display,
+-                      unsigned int keycode,
+-                      unsigned int mask)
+-{
+-  int i;
+-  int end;
+-  gboolean retval = FALSE;
+-  int mod_index;
+-  
+-  g_assert (display->modmap);
+-
+-  meta_topic (META_DEBUG_KEYBINDINGS,
+-              "Checking whether code 0x%x is bound to modifier 0x%x\n",
+-              keycode, mask);
+-  
+-  mod_index = 0;
+-  mask = mask >> 1;
+-  while (mask != 0)
+-    {
+-      mod_index += 1;
+-      mask = mask >> 1;
+-    }
+-
+-  meta_topic (META_DEBUG_KEYBINDINGS,
+-              "Modifier has index %d\n", mod_index);
+-  
+-  end = (mod_index + 1) * display->modmap->max_keypermod;
+-  i = mod_index * display->modmap->max_keypermod;
+-  while (i < end)
+-    {
+-      if (keycode == display->modmap->modifiermap[i])
+-        {
+-          retval = TRUE;
+-          break;
+-        }
+-      ++i;
+-    }
+-  
+-  return retval;
+-}
+-
+ static unsigned int
+ get_primary_modifier (MetaDisplay *display,
+                       unsigned int entire_binding_mask)
+@@ -1294,24 +1247,6 @@ get_primary_modifier (MetaDisplay *display,
+ }
+ 
+ static gboolean
+-keycode_is_primary_modifier (MetaDisplay *display,
+-                             unsigned int keycode,
+-                             unsigned int entire_binding_mask)
+-{
+-  unsigned int primary_modifier;
+-
+-  meta_topic (META_DEBUG_KEYBINDINGS,
+-              "Checking whether code 0x%x is the primary modifier of mask 0x%x\n",
+-              keycode, entire_binding_mask);
+-  
+-  primary_modifier = get_primary_modifier (display, entire_binding_mask);
+-  if (primary_modifier != 0)
+-    return is_specific_modifier (display, keycode, primary_modifier);
+-  else
+-    return FALSE;
+-}
+-
+-static gboolean
+ primary_modifier_still_pressed (MetaDisplay *display,
+                                 unsigned int entire_binding_mask)
+ {
+@@ -1571,8 +1506,8 @@ meta_display_process_key_event (MetaDisplay *display,
+     return FALSE;
+   
+   /* window may be NULL */
+-  
+-  keysym = XKeycodeToKeysym (display->xdisplay, event->xkey.keycode, 0);
++
++  keysym = XkbKeycodeToKeysym (display->xdisplay, event->xkey.keycode, 0, 0);
+ 
+   str = XKeysymToString (keysym);
+   
+@@ -2217,25 +2152,15 @@ static gboolean
+ end_keyboard_grab (MetaDisplay *display,
+ 		   unsigned int keycode)
+ {
+-#ifdef HAVE_XKB
+-  if (display->xkb_base_event_type > 0)
+-    {
+-      unsigned int primary_modifier;
+-      XkbStateRec state;
++  unsigned int primary_modifier;
++  XkbStateRec state;
++
++  primary_modifier = get_primary_modifier (display, display->grab_mask);
+   
+-      primary_modifier = get_primary_modifier (display, display->grab_mask);
+-      
+-      XkbGetState (display->xdisplay, XkbUseCoreKbd, &state);
++  XkbGetState (display->xdisplay, XkbUseCoreKbd, &state);
+ 
+-      if (!(primary_modifier & state.mods))
+-	return TRUE;
+-    }
+-  else
+-#endif
+-    {
+-      if (keycode_is_primary_modifier (display, keycode, display->grab_mask))
+-	return TRUE;
+-    }
++  if (!(primary_modifier & state.mods))
++    return TRUE;
+ 
+   return FALSE;
+ }
+@@ -4261,11 +4186,8 @@ meta_display_init_keys (MetaDisplay *display)
+ 
+   meta_prefs_add_listener (bindings_changed_callback, display);
+ 
+-#ifdef HAVE_XKB
+   /* meta_display_init_keys() should have already called XkbQueryExtension() */
+-  if (display->xkb_base_event_type != -1)
+-    XkbSelectEvents (display->xdisplay, XkbUseCoreKbd,
+-                     XkbNewKeyboardNotifyMask | XkbMapNotifyMask,
+-                     XkbNewKeyboardNotifyMask | XkbMapNotifyMask);
+-#endif
++  XkbSelectEvents (display->xdisplay, XkbUseCoreKbd,
++                   XkbNewKeyboardNotifyMask | XkbMapNotifyMask,
++                   XkbNewKeyboardNotifyMask | XkbMapNotifyMask);
+ }
+-- 
+1.7.8.163.g9859a.dirty
+
