@@ -12,11 +12,5 @@ case "${CATEGORY}/${PN}" in
     "net-libs/neon")
         LDFLAGS+=" -lgcrypt"
         ;;
-    "media-libs/clutter")
-        EGIT_BRANCH="clutter-1.8"
-        ;;
-    "media-libs/cogl")
-        EGIT_BRANCH="cogl-1.8"
-        ;;
 esac
 
