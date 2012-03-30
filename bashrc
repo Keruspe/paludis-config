@@ -1,8 +1,11 @@
 CFLAGS="-march=native -pipe -O3"
 CXXFLAGS="${CFLAGS}"
-LDFLAGS="-Wl,--as-needed -Wl,-O3"
+LDFLAGS="-Wl,-O3 -Wl,--as-needed"
 
 case "${CATEGORY}/${PN}" in
+    "gnome-desktop/gnome-utils")
+        LDFLAGS+=" -lfreetype"
+        ;;
     "sys-apps/paludis")
         CXXFLAGS+=" -g -ggdb3"
         ;;
