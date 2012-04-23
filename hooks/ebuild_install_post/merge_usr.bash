@@ -12,6 +12,7 @@ for dir in bin sbin lib lib32 lib64; do
             popd
             rmdir "${slashdir}"
         else
+            mkdir -p "${IMAGE}"/usr/
             mv "${slashdir}" "${usrdir}"
         fi
     fi
