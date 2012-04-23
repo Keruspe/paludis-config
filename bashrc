@@ -6,6 +6,12 @@ case "${CATEGORY}/${PN}" in
     "gnome-desktop/gnome-utils")
         LDFLAGS+=" -lfreetype"
         ;;
+    "gnome-desktop/brasero")
+        LDFLAGS+=" -lm"
+	;;
+    "sys-apps/rsyslog")
+        LDFLAGS+=" -lestr"
+	;;
     "sys-apps/paludis")
         CXXFLAGS+=" -g -ggdb3"
         ;;
