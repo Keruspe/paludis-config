@@ -7,7 +7,7 @@ for dir in bin sbin lib lib32 lib64; do
         if [[ -d "${usrdir}" ]]; then
             pushd "${slashdir}"
             for f in *; do
-                [[ ! -L "${f}" || ! -f "${usrdir}/${f}" ]] && mv "${f}" "${usrdir}" || rm "${f}"
+                [[ ! -L "${f}" || ! -f "${usrdir}/${f}" ]] && mv "${f}" "${usrdir}" || rm -r "${f}"
             done
             popd
             rmdir "${slashdir}"
@@ -23,7 +23,13 @@ if [[ -d "${usrdir}" ]]; then
     if [[ -d "${slashdir}" ]]; then
         pushd "${usrdir}"
         for f in *; do
-            [[ ! -L "${f}" || ! -f "${slashdir}/${f}" ]] && mv "${f}" "${slashdir}" || rm "${f}"
+            if [[ ! -f "${slashdir}/${f}" ]]; then
+                mv "${f}" "${slashdir}"
+            elif [[ -d "${f}" ]]; then
+                mv "${f}"/* "${slashdir}"
+            else
+                rm "${f}"
+            fi
         done
         popd
         rmdir "${usrdir}"
