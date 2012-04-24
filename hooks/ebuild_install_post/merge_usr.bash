@@ -9,6 +9,9 @@ for dir in bin sbin lib lib32 lib64; do
             for f in *; do
                 if [[ ! -L "${f}" || ! -f "${usrdir}/${f}" ]]; then
                     mv "${f}" "${usrdir}"
+                elif [[ -L "${usrdir}/${f}" ]]; then
+                    rm "${usrdir}/${f}"
+                    mv "${f}" "${usrdir}"
                 else
                     rm -r "${f}"
                 fi
