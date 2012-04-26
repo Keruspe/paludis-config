@@ -15,6 +15,9 @@ case "${CATEGORY}/${PN}" in
     "media-libs/libcanberra")
         CFLAGS+=" -lX11"
         ;;
+    "virtualization-lib/spice")
+        CFLAGS+=" -pthread"
+        ;;
     "sys-apps/paludis")
         CXXFLAGS+=" -g -ggdb3"
         ;;
