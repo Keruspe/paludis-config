@@ -12,6 +12,9 @@ case "${CATEGORY}/${PN}" in
     "sys-apps/rsyslog")
         LDFLAGS+=" -lestr"
 	;;
+    "media-libs/libcanberra")
+        CFLAGS+=" -lX11"
+        ;;
     "sys-apps/paludis")
         CXXFLAGS+=" -g -ggdb3"
         ;;
