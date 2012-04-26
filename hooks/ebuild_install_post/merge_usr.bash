@@ -1,23 +1,29 @@
-# vim: set sw=4 sts=4 et :
+apply_move() {
+    pushd "${1}"
+    for f in *; do
+        if [[ ! -f "${2}/${f}" && ! -d "${2}/${f}" && ! -L "${2}/${f}" ]]; then
+            mv "${f}" "${2}"
+        elif [[ -d "${f}" && -d "${2}/${f}" ]]; then
+            apply_move "${1}/${f}" "${2}/${f}"
+        elif [[ ! -L "${f}" ]]; then
+            mv "${f}" "${2}"
+        elif [[ -L "${2}/${f}" ]]; then
+            rm "${2}/${f}"
+            mv "${f}" "${2}"
+        else
+            rm -r "${f}"
+        fi
+    done
+    popd
+    rmdir "${1}"
+}
 
 for dir in bin sbin lib lib32 lib64; do
     local slashdir="${IMAGE}"/${dir}/
     if [[ -d "${slashdir}" ]]; then
         local usrdir="${IMAGE}"/usr/${dir}/
         if [[ -d "${usrdir}" ]]; then
-            pushd "${slashdir}"
-            for f in *; do
-                if [[ ! -L "${f}" || ! -f "${usrdir}/${f}" ]]; then
-                    mv "${f}" "${usrdir}"
-                elif [[ -L "${usrdir}/${f}" ]]; then
-                    rm "${usrdir}/${f}"
-                    mv "${f}" "${usrdir}"
-                else
-                    rm -r "${f}"
-                fi
-            done
-            popd
-            rmdir "${slashdir}"
+	    apply_move "${slashdir}" "${usrdir}"
         else
             mkdir -p "${IMAGE}"/usr/
             mv "${slashdir}" "${usrdir}"
@@ -29,18 +35,7 @@ local usrdir="${IMAGE}"/usr/etc/
 if [[ -d "${usrdir}" ]]; then
     local slashdir="${IMAGE}"/etc/
     if [[ -d "${slashdir}" ]]; then
-        pushd "${usrdir}"
-        for f in *; do
-            if [[ ! -f "${slashdir}/${f}" ]]; then
-                mv "${f}" "${slashdir}"
-            elif [[ -d "${f}" ]]; then
-                mv "${f}"/* "${slashdir}"
-            else
-                rm "${f}"
-            fi
-        done
-        popd
-        rmdir "${usrdir}"
+        apply_move "${usrdir}" "${slashdir}"
     else
         mv "${usrdir}" "${slashdir}"
     fi
