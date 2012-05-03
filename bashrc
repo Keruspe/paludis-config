@@ -9,9 +9,6 @@ case "${CATEGORY}/${PN}" in
     "gnome-desktop/brasero")
         LDFLAGS+=" -lm"
 	;;
-    "sys-apps/rsyslog")
-        LDFLAGS+=" -lestr"
-	;;
     "media-libs/libcanberra")
         CFLAGS+=" -lX11"
         ;;
