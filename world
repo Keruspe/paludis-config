@@ -62,7 +62,6 @@ sys-apps/iproute2
 gnome-desktop/gnome-control-center
 virtualization-lib/libvirt
 media/mplayer2
-sys-apps/rsyslog
 gnome-desktop/gtk-engines:2
 fonts/cantarell-fonts
 gnome-desktop/dconf
@@ -78,3 +77,6 @@ sys-sound/alsa-plugins
 x11-drivers/xf86-input-evdev
 x11-drivers/xf86-input-synaptics
 x11-drivers/xf86-video-ati
+dev-java/gradle
+sys-sound/alsa-utils
+app-office/gnumeric
