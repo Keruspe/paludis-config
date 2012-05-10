@@ -80,3 +80,10 @@ x11-drivers/xf86-video-ati
 dev-java/gradle
 sys-sound/alsa-utils
 app-office/gnumeric
+net-p2p/transmission
+dev-libs/zeitgeist
+net-im/telepathy-salut
+sys-apps/gptfdisk
+net-analyzer/wireshark
+net-utils/iftop
+net-misc/whois
