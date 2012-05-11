@@ -87,3 +87,5 @@ sys-apps/gptfdisk
 net-analyzer/wireshark
 net-utils/iftop
 net-misc/whois
+sys-apps/pax-utils
+net-wireless/bluez
