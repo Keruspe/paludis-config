@@ -18,6 +18,8 @@ apply_move() {
     rmdir "${1}"
 }
 
+einfo_unhooked "Applying usr merge"
+
 for dir in bin sbin lib lib32 lib64; do
     local slashdir="${IMAGE}"/${dir}/
     if [[ -d "${slashdir}" ]]; then
