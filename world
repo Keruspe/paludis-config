@@ -6,7 +6,6 @@ sys-apps/pciutils
 sys-devel/gdb
 dev-scm/git
 sys-apps/systemd
-sys-fs/lvm2
 app-terminal/tmux
 app-shells/zsh
 gnome-desktop/file-roller
@@ -18,7 +17,6 @@ dev-util/meld
 net-plugins/adobe-flash
 sys-process/htop
 x11-libs/clutter
-gnome-desktop/gnome-utils
 sys-auth/vlock
 dev-util/geany-plugins
 app-security/chkrootkit
@@ -88,4 +86,12 @@ net-analyzer/wireshark
 net-utils/iftop
 net-misc/whois
 sys-apps/pax-utils
-net-wireless/bluez
+dev-lang/icedtea6
+dev-lang/scala
+gnome-desktop/gnome-shell
+x11-apps/xhost
+app-diagram/dia
+gnome-desktop/baobab
+gnome-desktop/gnome-screenshot
+dev-util/valgrind
+dev-scala/sbt
