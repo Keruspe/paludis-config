@@ -3,17 +3,11 @@ CXXFLAGS="${CFLAGS}"
 LDFLAGS="-Wl,-O3 -Wl,--as-needed"
 
 case "${CATEGORY}/${PN}" in
-    "gnome-desktop/gnome-utils")
+    "gnome-desktop/sushi")
         LDFLAGS+=" -lfreetype"
-        ;;
-    "gnome-desktop/brasero")
-        LDFLAGS+=" -lm"
 	;;
     "media-libs/libcanberra")
         CFLAGS+=" -lX11"
-        ;;
-    "virtualization-lib/spice")
-        CFLAGS+=" -pthread"
         ;;
     "sys-apps/paludis")
         CXXFLAGS+=" -g -ggdb3"
