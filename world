@@ -4,6 +4,7 @@ app-security/chkrootkit
 app-text/texlive
 app-text/wgetpaste
 app-vim/exheres-syntax
+app-vim/vala
 dev-java/gradle
 dev-java/maven
 dev-lang/erlang
@@ -16,7 +17,6 @@ gnome-desktop/file-roller
 gnome-desktop/gcalctool
 gnome-desktop/gnome-control-center
 gnome-desktop/gnome-documents
-gnome-desktop/gnome-power-manager
 gnome-desktop/gnome-screensaver
 gnome-desktop/gnome-screenshot
 gnome-desktop/gnome-system-monitor
@@ -37,6 +37,7 @@ net-misc/whois
 net-utils/iftop
 net-www/epiphany
 net-www/firefox
+net-www/links
 sys-apps/gptfdisk
 sys-apps/iproute2
 sys-apps/pax-utils
