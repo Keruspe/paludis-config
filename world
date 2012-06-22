@@ -24,6 +24,7 @@ gnome-desktop/GPaste
 gnome-desktop/sushi
 gnome-desktop/vinagre
 media/mplayer2
+media-sound/audacious
 net/autossh
 net/memcached
 net-dns/bind-tools
