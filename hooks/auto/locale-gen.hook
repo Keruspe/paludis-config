@@ -1,0 +1,56 @@
+#!/bin/bash
+# vim: set sw=4 et sts=4 tw=80 :
+# Copyright 2009 Ali Polatel <polatel@gmail.com>
+# Distributed under the terms of the GNU General Public License v2
+
+# Hook to regenerate locales after glibc upgrade.
+# Configuration
+LOCALE_GEN=(
+    "fr_FR ISO-8859-15"
+    "fr_FR.UTF-8 UTF-8"
+    "en_GB ISO-8859-1"
+    "en_GB.UTF-8 UTF-8"
+)
+
+hook_auto_names() {
+   echo merger_install_post
+}
+
+hook_run_merger_install_post() {
+    source "${PALUDIS_EBUILD_DIR}"/echo_functions.bash
+
+    if [[ "${CATEGORY}/${PN}" != "sys-libs/glibc" ]]; then
+        return 0
+    fi
+
+    local localedef="$(type -P localedef 2>/dev/null)"
+    if [[ -z "${localedef}" ]]; then
+        ewarn "localedef not found, skipping locale generation!"
+        return 0
+    elif [[ -z "${LOCALE_GEN[@]}" ]]; then
+        einfo_unhooked "LOCALE_GEN not set, skipping locale generation!"
+        return 0
+    fi
+
+    local lokal
+    for lokal in "${LOCALE_GEN[@]}"; do
+        local name="${lokal% *}"
+        local input="${name%.*}"
+        local charmap="${lokal#* }"
+
+        if [[ -z "${name}" ]]; then
+           ewarn "failed to grab locale name from \"${lokal}\" in LOCALE_GEN"
+           continue
+        elif [[ -z "${input}" ]]; then
+           ewarn "failed to grab input name from \"${lokal}\" in LOCALE_GEN"
+           continue
+        elif [[ -z "${charmap}" ]]; then
+           ewarn "failed to grab charmap name from \"${lokal}\" in LOCALE_GEN"
+           continue
+        fi
+
+        echo "Generating locale ${name}"
+        ${localedef} -i "${input}" -f "${charmap}" "${name}"
+    done
+}
+
