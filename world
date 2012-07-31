@@ -1,10 +1,12 @@
 app-editors/gedit
+app-misc/tree
 app-paludis/paludis-scripts
 app-security/chkrootkit
 app-text/texlive
 app-text/wgetpaste
 app-vim/exheres-syntax
 app-vim/vala
+app-virtualization/gnome-boxes
 dev-java/gradle
 dev-java/maven
 dev-lang/erlang
@@ -34,6 +36,7 @@ net-irc/weechat
 net-misc/bridge-utils
 net-misc/gnome-nettool
 net-misc/keychain
+net-misc/socat
 net-misc/whois
 net-utils/iftop
 net-www/epiphany
