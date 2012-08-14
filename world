@@ -1,4 +1,5 @@
 app-editors/gedit
+app-laptop/powertop
 app-misc/tree
 app-paludis/paludis-scripts
 app-security/chkrootkit
@@ -50,5 +51,6 @@ sys-boot/efibootmgr
 sys-devel/gdb
 sys-process/htop
 x11-apps/Germinal
+x11-apps/setxkbmap
 x11-apps/xhost
 x11-apps/xrandr
