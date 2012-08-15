@@ -7,7 +7,7 @@ dir=/var/db/paludis/repositories/${TARGET}
 source /usr/libexec/paludis/echo_functions.bash
 
 pushd $dir &>/dev/null
-for p in *.patch; do
+for p in /etc/paludis/autopatch/${TARGET}/*.patch; do
    [[ -f ${p} ]] || continue
    if ! git am ${p}; then
        git am --abort
