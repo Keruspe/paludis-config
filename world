@@ -3,7 +3,6 @@ app-laptop/powertop
 app-misc/tree
 app-paludis/paludis-scripts
 app-security/chkrootkit
-app-text/texlive
 app-text/wgetpaste
 app-vim/exheres-syntax
 app-vim/vala
