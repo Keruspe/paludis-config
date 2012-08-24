@@ -42,7 +42,6 @@ net-misc/whois
 net-utils/iftop
 net-www/epiphany
 net-www/firefox
-net-www/links
 sys-apps/gptfdisk
 sys-apps/iproute2
 sys-apps/pax-utils
