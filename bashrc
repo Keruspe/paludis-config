@@ -12,7 +12,7 @@ case "${CATEGORY}/${PN}" in
     "sys-apps/paludis")
         CXXFLAGS+=" -g -ggdb3"
         ;;
-    "virtualization-lib/spice")
+    "media/mplayer2"|"virtualization-lib/spice")
         LDFLAGS+=" -pthread"
         ;;
     "x11-libs/mx")
