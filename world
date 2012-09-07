@@ -33,6 +33,7 @@ net/memcached
 net-dns/bind-tools
 net-dns/nss-myhostname
 net-im/empathy
+net-im/skype
 net-irc/weechat
 net-misc/bridge-utils
 net-misc/gnome-nettool
