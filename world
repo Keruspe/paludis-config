@@ -41,6 +41,7 @@ net-misc/keychain
 net-misc/socat
 net-misc/whois
 net-utils/iftop
+net-www/chromium-dev
 net-www/epiphany
 net-www/firefox
 sys-apps/gptfdisk
@@ -52,5 +53,6 @@ sys-devel/gdb
 sys-process/htop
 x11-apps/Germinal
 x11-apps/setxkbmap
+x11-apps/xev
 x11-apps/xhost
 x11-apps/xrandr
