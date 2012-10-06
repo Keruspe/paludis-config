@@ -7,6 +7,8 @@ app-text/wgetpaste
 app-vim/exheres-syntax
 app-vim/vala
 app-virtualization/gnome-boxes
+compositor/weston
+dev-db/postgresql
 dev-java/gradle
 dev-java/maven
 dev-lang/erlang
