@@ -38,7 +38,6 @@ net-im/empathy
 net-im/skype
 net-irc/weechat
 net-misc/bridge-utils
-net-misc/gnome-nettool
 net-misc/keychain
 net-misc/socat
 net-misc/whois

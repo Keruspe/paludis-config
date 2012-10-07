@@ -18,4 +18,7 @@ case "${CATEGORY}/${PN}" in
     "x11-libs/mx")
         LDFLAGS+=" -lm"
         ;;
+    "gnome-desktop/GPaste")
+        CFLAGS+=" -O1 -g -ggdb3"
+        ;;
 esac
