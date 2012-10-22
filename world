@@ -19,6 +19,7 @@ gnome-desktop/baobab
 gnome-desktop/eog
 gnome-desktop/file-roller
 gnome-desktop/gcalctool
+gnome-desktop/gnome-calendar
 gnome-desktop/gnome-control-center
 gnome-desktop/gnome-documents
 gnome-desktop/gnome-screensaver
@@ -32,6 +33,7 @@ media/mplayer2
 media-sound/audacious
 net/autossh
 net/memcached
+net/ntp
 net-dns/bind-tools
 net-dns/nss-myhostname
 net-im/empathy
