@@ -3,6 +3,9 @@ CXXFLAGS="${CFLAGS}"
 LDFLAGS="-Wl,-O3 -Wl,--as-needed"
 
 case "${CATEGORY}/${PN}" in
+    "dev-util/elfutils")
+        CFLAGS+=" -O2"
+        ;;
     "gnome-desktop/sushi")
         LDFLAGS+=" -lfreetype"
         ;;
