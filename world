@@ -9,6 +9,8 @@ app-vim/vala
 app-virtualization/gnome-boxes
 compositor/weston
 dev-db/postgresql
+dev-haskell/haddock
+dev-haskell/hakyll
 dev-java/gradle
 dev-java/maven
 dev-lang/erlang
@@ -29,7 +31,6 @@ gnome-desktop/GPaste
 gnome-desktop/seahorse
 gnome-desktop/sushi
 gnome-desktop/vinagre
-media/mplayer2
 media-sound/audacious
 net/autossh
 net/memcached
@@ -50,12 +51,18 @@ net-www/firefox
 sys-apps/gptfdisk
 sys-apps/iproute2
 sys-apps/pax-utils
-sys-auth/vlock
 sys-boot/efibootmgr
+sys-boot/gummiboot
 sys-devel/gdb
+sys-fs/cryptsetup
 sys-process/htop
 x11-apps/Germinal
 x11-apps/setxkbmap
 x11-apps/xev
 x11-apps/xhost
 x11-apps/xrandr
+#WIP
+app-arch/snappy
+dev-libs/v8
+net/haproxy
+sys-apps/repo
