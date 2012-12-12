@@ -3,9 +3,6 @@ CXXFLAGS="${CFLAGS}"
 LDFLAGS="-Wl,-O3 -Wl,--as-needed"
 
 case "${CATEGORY}/${PN}" in
-    "dev-util/elfutils")
-        CFLAGS+=" -O2"
-        ;;
     "gnome-desktop/sushi")
         LDFLAGS+=" -lfreetype"
         ;;
@@ -18,7 +15,7 @@ case "${CATEGORY}/${PN}" in
     "media/mplayer2"|"virtualization-lib/spice")
         LDFLAGS+=" -pthread"
         ;;
-    "x11-libs/mx")
+    "media-libs/libvorbis"|"x11-libs/mx")
         LDFLAGS+=" -lm"
         ;;
     "gnome-desktop/GPaste")
