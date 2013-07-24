@@ -85,3 +85,4 @@ x11-apps/setxkbmap
 x11-apps/xev
 x11-apps/xhost
 x11-apps/xrandr
+gnome-desktop/gnome-screensaver
