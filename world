@@ -17,7 +17,6 @@ dev-scala/sbt
 dev-tex/latex-beamer
 dev-util/cppcheck
 dev-util/lcov
-dev-util/strace
 gnome-desktop/baobab
 gnome-desktop/eog
 gnome-desktop/file-roller
