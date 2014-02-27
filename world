@@ -1,11 +1,9 @@
 app-admin/eclectic-fontconfig
 app-paludis/paludis-scripts
-app-pda/libimobiledevice
 app-scm/gitg
 app-text/wgetpaste
 app-vim/exheres-syntax
 app-vim/vala
-app-virtualization/gnome-boxes
 compositor/weston
 dev-haskell/hakyll
 dev-java/gradle
@@ -17,6 +15,7 @@ dev-tex/latex-beamer
 dev-util/cppcheck
 dev-util/lcov
 fonts/linuxlibertine
+fonts/unifont
 gnome-desktop/baobab
 gnome-desktop/eog
 gnome-desktop/file-roller
@@ -46,6 +45,8 @@ net-misc/whois
 net-news/liferea
 net/ntp
 net-p2p/transmission
+net-www/chromium-dev
+net-www/chromium-dev-flash-plugin
 net-www/epiphany
 net-www/firefox
 sys-apps/gptfdisk
@@ -63,3 +64,14 @@ x11-apps/setxkbmap
 x11-apps/xev
 x11-apps/xhost
 x11-apps/xrandr
+mail-client/evolution
+sys-fs/dosfstools
+dev-scm/git-review
+dev-python/isodate
+dev-lang/go
+net-utils/iftop
+dev-db/leveldb
+app-admin/password-store
+sys-libs/libseccomp
+dev-util/meld
+net-analyzer/wireshark
