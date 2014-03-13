@@ -75,3 +75,9 @@ app-admin/password-store
 sys-libs/libseccomp
 dev-util/meld
 net-analyzer/wireshark
+gnome-desktop/cheese
+gnome-desktop/gnome-music
+gnome-desktop/bijiben
+gnome-desktop/gnome-maps
+gnome-desktop/gnome-weather
+gnome-desktop/gnome-photos
