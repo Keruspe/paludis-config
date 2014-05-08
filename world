@@ -15,6 +15,7 @@ dev-haskell/hakyll
 dev-java/gradle
 dev-java/maven
 dev-lang/clang
+dev-lang/ghc
 dev-lang/go
 dev-lang/rust
 dev-libs/libappindicator
@@ -48,6 +49,7 @@ gnome-desktop/gnome-system-monitor
 gnome-desktop/gnome-weather
 gnome-desktop/nautilus
 gnome-desktop/seahorse
+gnome-desktop/sushi
 gnome-desktop/totem
 gnome-desktop/vinagre
 mail-client/evolution
@@ -66,10 +68,10 @@ net-misc/whois
 net-news/liferea
 net-p2p/transmission
 net-utils/iftop
-net-www/chromium-dev
-net-www/chromium-dev-flash-plugin
+net-www/chromium-stable
+net-www/chromium-stable-flash-plugin
 net-www/epiphany
-net-www/firefox
+net-www/nightly
 net/autossh
 net/eventd
 net/ntp
