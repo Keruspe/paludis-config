@@ -6,6 +6,9 @@ case "${CATEGORY}/${PN}" in
     "sys-apps/paludis")
         CXXFLAGS="-march=native -pipe -O0 -g -ggdb3"
         CFLAGS="${CXXFLAGS}"
-        LDFLAGS="-Wl,-O2"
+        ;;
+    "sys-apps/systemd")
+        CFLAGS+=" -fno-lto"
+        LDFLAGS+=" -fno-lto"
         ;;
 esac
