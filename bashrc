@@ -7,8 +7,7 @@ case "${CATEGORY}/${PN}" in
         CXXFLAGS="-march=native -pipe -O0 -g -ggdb3"
         CFLAGS="${CXXFLAGS}"
         ;;
-    "sys-apps/systemd")
-        CFLAGS+=" -fno-lto"
-        LDFLAGS+=" -fno-lto"
+    "x11-libs/cairo")
+        CFLAGS+=" -ffat-lto-objects"
         ;;
 esac
