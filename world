@@ -53,7 +53,6 @@ net-analyzer/traceroute
 net-analyzer/wireshark
 net-dns/bind-tools
 net-im/empathy
-net-im/skype
 net-irc/weechat
 net-misc/keychain
 net-misc/mtr
@@ -88,7 +87,6 @@ app-virtualization/docker
 net-www/chromium-beta-flash-plugin
 app-laptop/powertop
 sys-apps/cv
-distribution/steam
 dev-lang/node
 net-www/chromium-beta
 x11-server/xorg-server
