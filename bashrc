@@ -11,9 +11,6 @@ case "${CATEGORY}/${PN}" in
         CXXFLAGS="-march=native -pipe -O1"
         CFLAGS="${CXXFLAGS}"
         ;;
-    "gnome-desktop/gnome-settings-daemon")
-        LDFLAGS+=" -Wl,--no-as-needed"
-        ;;
     "x11-libs/cairo")
         CFLAGS+=" -ffat-lto-objects"
         ;;
