@@ -4,7 +4,7 @@ dir=/var/db/paludis/repositories/${TARGET}
 
 [[ -d ${dir} ]] || exit 0
 
-source /usr/libexec/paludis/echo_functions.bash
+source "${PALUDIS_EBUILD_DIR}"/echo_functions.bash
 
 pushd $dir &>/dev/null
 for p in /etc/paludis/autopatch/${TARGET}/*.patch; do
