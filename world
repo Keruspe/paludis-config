@@ -4,11 +4,14 @@ app-laptop/powertop
 app-paludis/paludis-scripts
 app-pda/usbmuxd
 app-scm/gitg
+app-text/pandoc
 app-text/wgetpaste
 app-vim/exheres-syntax
 app-vim/vala
 app-virtualization/docker
+dev-haskell/hakyll
 dev-java/maven
+dev-lang/ghc
 dev-lang/node
 dev-libs/libappindicator
 dev-scala/sbt
