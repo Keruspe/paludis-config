@@ -44,6 +44,7 @@ media-plugins/gst-libav
 net-analyzer/traceroute
 net-analyzer/wireshark
 net-dns/bind-tools
+net-misc/gnome-nettool
 net-misc/keychain
 net-misc/mtr
 net-misc/socat
