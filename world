@@ -27,8 +27,12 @@ gnome-desktop/baobab
 gnome-desktop/eog
 gnome-desktop/file-roller
 gnome-desktop/gnome-calculator
+gnome-desktop/gnome-calendar
+gnome-desktop/gnome-clocks
 gnome-desktop/gnome-control-center
 gnome-desktop/gnome-flashback
+gnome-desktop/gnome-logs
+gnome-desktop/gnome-maps
 gnome-desktop/gnome-screenshot
 gnome-desktop/gnome-system-monitor
 gnome-desktop/gnome-weather
@@ -48,6 +52,7 @@ net-misc/whois
 net-utils/iftop
 net-www/nightly
 net/autossh
+net/rabbitmq-server
 sys-apps/cv
 sys-apps/gptfdisk
 sys-apps/iproute2
