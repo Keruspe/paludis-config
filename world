@@ -11,9 +11,12 @@ app-vim/vala
 app-virtualization/docker
 dev-haskell/hakyll
 dev-java/maven
+dev-lang/clang
 dev-lang/ghc
+dev-lang/llvm
 dev-lang/node
 dev-libs/libappindicator
+dev-ruby/bunny
 dev-scala/sbt
 dev-scm/git-review
 dev-util/cppcheck
@@ -22,6 +25,7 @@ dev-util/lcov
 dev-util/meld
 fonts/linuxlibertine
 fonts/unifont
+games-education/klavaro
 gnome-desktop/GPaste
 gnome-desktop/baobab
 gnome-desktop/eog
@@ -51,6 +55,7 @@ net-misc/socat
 net-misc/telnet
 net-misc/whois
 net-utils/iftop
+net-www/chromium-stable
 net-www/nightly
 net/autossh
 net/rabbitmq-server
@@ -64,9 +69,7 @@ sys-devel/gdb
 sys-fs/cryptsetup
 sys-fs/dosfstools
 sys-fs/facron
-sys-libs/libatomic
-sys-libs/libgcc
-sys-libs/libstdc++
+sys-fs/squashfs-tools
 sys-process/htop
 sys-sound/alsa-utils
 x11-apps/Germinal
