@@ -1,10 +1,10 @@
 app-admin/eclectic-fontconfig
 app-admin/password-store
+app-editors/neovim
 app-laptop/powertop
 app-paludis/paludis-scripts
 app-pda/usbmuxd
 app-scm/gitg
-app-text/pandoc
 app-text/wgetpaste
 app-vim/exheres-syntax
 app-vim/vala
@@ -15,8 +15,10 @@ dev-lang/clang
 dev-lang/ghc
 dev-lang/llvm
 dev-lang/node
+dev-lang/rust
 dev-libs/libappindicator
 dev-ruby/bunny
+dev-rust/cargo
 dev-scala/sbt
 dev-scm/git-review
 dev-util/cppcheck
@@ -54,6 +56,7 @@ net-misc/mtr
 net-misc/socat
 net-misc/telnet
 net-misc/whois
+net-p2p/transmission
 net-utils/iftop
 net-www/chromium-stable
 net-www/nightly
@@ -62,6 +65,7 @@ net/rabbitmq-server
 sys-apps/cv
 sys-apps/gptfdisk
 sys-apps/iproute2
+sys-apps/multiload
 sys-apps/pax-utils
 sys-boot/efibootmgr
 sys-boot/gnu-efi

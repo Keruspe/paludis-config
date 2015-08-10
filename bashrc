@@ -9,7 +9,11 @@ case "${CATEGORY}/${PN}" in
         x86_64_pc_linux_gnu_CFLAGS="${x86_64_pc_linux_gnu_CXXFLAGS}"
         ;;
     "dev-lang/node"|"net-www/nightly")
-        x86_64_pc_linux_gnu_CXXFLAGS="-march=native -pipe -O2"
+        x86_64_pc_linux_gnu_CXXFLAGS="-march=native -pipe -O1"
+        x86_64_pc_linux_gnu_CXXFLAGS+=" -g -ggdb3"
         x86_64_pc_linux_gnu_CFLAGS="${x86_64_pc_linux_gnu_CXXFLAGS}"
+        ;;
+    "sys-devel/gcj")
+        x86_64_pc_linux_gnu_LDFLAGS="-Wl,-O2"
         ;;
 esac
