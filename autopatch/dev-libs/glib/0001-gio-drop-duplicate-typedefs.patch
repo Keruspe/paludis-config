@@ -1,0 +1,30 @@
+From fbd57a83033eb4f78b7f40fe0e678ea786ee548a Mon Sep 17 00:00:00 2001
+From: Marc-Antoine Perennou <Marc-Antoine@Perennou.com>
+Date: Tue, 24 Feb 2015 09:49:21 +0100
+Subject: [PATCH] gio: drop duplicate typedefs
+
+GListModel and GListStore are using G_DECLARE_* which already do the typedef
+
+https://bugzilla.gnome.org/show_bug.cgi?id=745069
+
+Signed-off-by: Marc-Antoine Perennou <Marc-Antoine@Perennou.com>
+---
+ gio/giotypes.h | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/gio/giotypes.h b/gio/giotypes.h
+index 4342d47..53f8cc9 100644
+--- a/gio/giotypes.h
++++ b/gio/giotypes.h
+@@ -61,8 +61,6 @@ typedef struct _GPermission                   GPermission;
+ 
+ typedef struct _GMenuModel                    GMenuModel;
+ typedef struct _GNotification                 GNotification;
+-typedef struct _GListModel                    GListModel;
+-typedef struct _GListStore                    GListStore;
+ 
+ /**
+  * GDrive:
+-- 
+2.3.0
+
