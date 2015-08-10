@@ -8,7 +8,7 @@ case "${CATEGORY}/${PN}" in
         base_CFLAGS="-march=native -pipe -O0 -g -ggdb3"
         ;;
     "dev-lang/node"|"net-www/nightly")
-        base_CFLAGS="-march=native -pipe -O1 -g"
+        base_CFLAGS="-march=native -pipe -O0"
         ;;
     "sys-devel/gcj")
         base_LDFLAGS="-Wl,-O2"
