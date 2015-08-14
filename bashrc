@@ -7,8 +7,8 @@ case "${CATEGORY}/${PN}" in
     "sys-apps/paludis")
         base_CFLAGS="-march=native -pipe -O0 -g -ggdb3"
         ;;
-    "dev-lang/node"|"net-www/nightly")
-        base_CFLAGS="-march=native -pipe -O0"
+    "dev-lang/node")
+        base_CFLAGS="-march=native -pipe -O1"
         ;;
     "sys-devel/gcj")
         base_LDFLAGS="-Wl,-O2"
