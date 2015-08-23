@@ -46,7 +46,7 @@ gnome-desktop/nautilus
 gnome-desktop/seahorse
 gnome-desktop/totem
 gnome-desktop/vinagre
-media-plugins/gst-libav
+media-plugins/gst-ffmpeg
 net-analyzer/traceroute
 net-analyzer/wireshark
 net-dns/bind-tools
