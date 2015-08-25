@@ -18,7 +18,6 @@ dev-libs/libappindicator
 dev-ruby/bunny
 dev-rust/cargo
 dev-scala/sbt
-dev-scm/git-review
 dev-util/cppcheck
 dev-util/exherbo-dev-tools
 dev-util/lcov
