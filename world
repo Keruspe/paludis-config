@@ -6,7 +6,6 @@ app-pda/usbmuxd
 app-scm/gitg
 app-text/wgetpaste
 app-vim/exheres-syntax
-app-vim/vala
 app-virtualization/docker
 dev-haskell/hakyll
 dev-java/maven
