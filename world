@@ -33,6 +33,7 @@ gnome-desktop/file-roller
 gnome-desktop/gnome-calculator
 gnome-desktop/gnome-calendar
 gnome-desktop/gnome-clocks
+gnome-desktop/gnome-contacts
 gnome-desktop/gnome-control-center
 gnome-desktop/gnome-flashback
 gnome-desktop/gnome-logs
@@ -44,7 +45,7 @@ gnome-desktop/nautilus
 gnome-desktop/seahorse
 gnome-desktop/totem
 gnome-desktop/vinagre
-media-plugins/gst-ffmpeg
+media-plugins/gst-libav
 media/pinos
 net-analyzer/traceroute
 net-analyzer/wireshark
@@ -53,7 +54,6 @@ net-misc/gnome-nettool
 net-misc/keychain
 net-misc/mosh
 net-misc/mtr
-net-misc/socat
 net-misc/telnet
 net-misc/whois
 net-p2p/transmission
