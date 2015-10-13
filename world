@@ -11,6 +11,7 @@ dev-haskell/hakyll
 dev-java/maven
 dev-lang/ghc
 dev-lang/node
+dev-lang/openjdk8
 dev-lang/rust
 dev-libs/compiler-rt
 dev-libs/libappindicator
