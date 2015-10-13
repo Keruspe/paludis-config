@@ -2,7 +2,6 @@ app-admin/eclectic-fontconfig
 app-admin/password-store
 app-laptop/powertop
 app-paludis/paludis-scripts
-app-pda/usbmuxd
 app-scm/gitg
 app-text/wgetpaste
 app-vim/exheres-syntax
@@ -45,7 +44,6 @@ gnome-desktop/gnome-weather
 gnome-desktop/nautilus
 gnome-desktop/seahorse
 gnome-desktop/totem
-gnome-desktop/vinagre
 media-plugins/gst-libav
 media/pinos
 net-analyzer/traceroute
