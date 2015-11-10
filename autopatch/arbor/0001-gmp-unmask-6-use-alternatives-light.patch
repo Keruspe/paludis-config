@@ -1,0 +1,152 @@
+From 665565027287fd17a9941c133767dfdf3d0fcdd8 Mon Sep 17 00:00:00 2001
+From: Thomas Witt <pyromaniac@exherbo.org>
+Date: Mon, 30 Mar 2015 23:41:36 +0200
+Subject: [PATCH] gmp: unmask :6; use alternatives-light
+
+Since gmp collides with previous versions, this uses light alternatives
+for all three of the versions we have in arbor, so that the upgrade can
+be done more easily, and without breaking any packages' linkages.
+
+Change-Id: I39192cc5d1451082f766bd2d7430bc8a611c6f0f
+---
+ metadata/repository_mask.conf                           |  7 -------
+ .../{gmp-4.3.2-r3.exheres-0 => gmp-4.3.2-r4.exheres-0}  | 11 +++++++++++
+ .../{gmp-5.1.3-r2.exheres-0 => gmp-5.1.3-r3.exheres-0}  | 17 ++++++++++++++++-
+ .../gmp/{gmp-6.1.0.exheres-0 => gmp-6.1.0-r2.exheres-0} | 13 +++++++++++++
+ 4 files changed, 40 insertions(+), 8 deletions(-)
+ rename packages/dev-libs/gmp/{gmp-4.3.2-r3.exheres-0 => gmp-4.3.2-r4.exheres-0} (62%)
+ rename packages/dev-libs/gmp/{gmp-5.1.3-r2.exheres-0 => gmp-5.1.3-r3.exheres-0} (63%)
+ rename packages/dev-libs/gmp/{gmp-6.1.0.exheres-0 => gmp-6.1.0-r2.exheres-0} (67%)
+
+diff --git a/metadata/repository_mask.conf b/metadata/repository_mask.conf
+index 9bd3ce8..268ed27 100644
+--- a/metadata/repository_mask.conf
++++ b/metadata/repository_mask.conf
+@@ -272,13 +272,6 @@ net-print/cups-filters[<1.0.71] [[
+     description = [ CVE-2015-3279 ]
+ ]]
+ 
+-dev-libs/gmp:6 [[
+-    author = [ Thomas Witt <pyromaniac@exherbo.org ]
+-    date = [ 27 Mar 2014 ]
+-    token = testing
+-    description = [ Needs testing ]
+-]]
+-
+ app-arch/lzo[<2.07] [[
+     author = [ Timo Gurr <tgurr@exherbo.org> ]
+     date = [ 02 Jul 2014 ]
+diff --git a/packages/dev-libs/gmp/gmp-4.3.2-r3.exheres-0 b/packages/dev-libs/gmp/gmp-4.3.2-r4.exheres-0
+similarity index 62%
+rename from packages/dev-libs/gmp/gmp-4.3.2-r3.exheres-0
+rename to packages/dev-libs/gmp/gmp-4.3.2-r4.exheres-0
+index fc0a0e3..35f39ac 100644
+--- a/packages/dev-libs/gmp/gmp-4.3.2-r3.exheres-0
++++ b/packages/dev-libs/gmp/gmp-4.3.2-r4.exheres-0
+@@ -1,6 +1,7 @@
+ # Copyright 2007 Bryan Østergaard
+ # Distributed under the terms of the GNU General Public License v2
+ 
++require alternatives
+ require gnu [ suffix=bz2 ]
+ 
+ SUMMARY="GNU Multiple Precision arithmetic library"
+@@ -43,6 +44,16 @@ src_configure() {
+ src_install() {
+     default
+ 
++    alternatives_for _$(exhost --target)_gmp "${SLOT}" "${SLOT}"    \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.a             \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.la            \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.so.3          \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.so            \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.a           \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.la          \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.so.4        \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.so
++
+     edo rm -r "${IMAGE}"/usr/{$(exhost --target)/include,share/info/}
+ }
+ 
+diff --git a/packages/dev-libs/gmp/gmp-5.1.3-r2.exheres-0 b/packages/dev-libs/gmp/gmp-5.1.3-r3.exheres-0
+similarity index 63%
+rename from packages/dev-libs/gmp/gmp-5.1.3-r2.exheres-0
+rename to packages/dev-libs/gmp/gmp-5.1.3-r3.exheres-0
+index 45e9633..2a249f2 100644
+--- a/packages/dev-libs/gmp/gmp-5.1.3-r2.exheres-0
++++ b/packages/dev-libs/gmp/gmp-5.1.3-r3.exheres-0
+@@ -3,6 +3,7 @@
+ # Copyright 2013 Bo Ørsted Andresen <zlin@exherbo.org>
+ # Distributed under the terms of the GNU General Public License v2
+ 
++require alternatives
+ require gnu [ suffix=xz ]
+ 
+ SUMMARY="GNU Multiple Precision arithmetic library"
+@@ -16,7 +17,6 @@ UPSTREAM_RELEASE_NOTES="${HOMEPAGE}/${PN}$(ever range 1-2).html [[ lang = en ]]"
+ LICENCES="GPL-3 LGPL-3"
+ SLOT="5"
+ PLATFORMS="~amd64 ~arm ~armv7 ~x86"
+-
+ MYOPTIONS="parts: development documentation libraries"
+ 
+ DEPENDENCIES="
+@@ -59,6 +59,21 @@ src_configure() {
+ src_install() {
+     default
+ 
++    alternatives_for _$(exhost --target)_gmp "${SLOT}" "${SLOT}"    \
++        /usr/share/info/gmp{,-${SLOT}}.info                         \
++        /usr/share/info/gmp{,-${SLOT}}.info-1                       \
++        /usr/share/info/gmp{,-${SLOT}}.info-2                       \
++        /usr/$(exhost --target)/include/gmp{,-${SLOT}}.h            \
++        /usr/$(exhost --target)/include/gmpxx{,-${SLOT}}.h          \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.a             \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.la            \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.so.10         \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.so            \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.a           \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.la          \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.so.4        \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.so
++
+     expart development /usr/$(exhost --target)/include
+     expart documentation /usr/share/{doc,info}
+     expart libraries /usr/$(exhost --target)/lib
+diff --git a/packages/dev-libs/gmp/gmp-6.1.0.exheres-0 b/packages/dev-libs/gmp/gmp-6.1.0-r2.exheres-0
+similarity index 67%
+rename from packages/dev-libs/gmp/gmp-6.1.0.exheres-0
+rename to packages/dev-libs/gmp/gmp-6.1.0-r2.exheres-0
+index d0d8f00..38e5548 100644
+--- a/packages/dev-libs/gmp/gmp-6.1.0.exheres-0
++++ b/packages/dev-libs/gmp/gmp-6.1.0-r2.exheres-0
+@@ -3,6 +3,7 @@
+ # Copyright 2013 Bo Ørsted Andresen <zlin@exherbo.org>
+ # Distributed under the terms of the GNU General Public License v2
+ 
++require alternatives
+ require gnu [ suffix=xz ]
+ 
+ SUMMARY="GNU Multiple Precision arithmetic library"
+@@ -57,6 +58,18 @@ src_configure() {
+ src_install() {
+     default
+ 
++    alternatives_for _$(exhost --target)_gmp "${SLOT}" "${SLOT}"    \
++        /usr/$(exhost --target)/include/gmp{,-${SLOT}}.h            \
++        /usr/$(exhost --target)/include/gmpxx{,-${SLOT}}.h          \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.a             \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.la            \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.so.10         \
++        /usr/$(exhost --target)/lib/libgmp{,-${SLOT}}.so            \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.a           \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.la          \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.so.4        \
++        /usr/$(exhost --target)/lib/libgmpxx{,-${SLOT}}.so
++
+     expart development /usr/$(exhost --target)/include
+     expart documentation /usr/share/{doc,info}
+     expart libraries /usr/$(exhost --target)/lib
+-- 
+2.6.3
+

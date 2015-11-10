@@ -9,7 +9,6 @@ app-virtualization/docker
 dev-haskell/hakyll
 dev-java/maven
 dev-lang/ghc
-dev-lang/node
 dev-lang/openjdk8
 dev-lang/rust
 dev-libs/compiler-rt
@@ -20,7 +19,6 @@ dev-scala/sbt
 dev-util/cppcheck
 dev-util/exherbo-dev-tools
 dev-util/lcov
-dev-util/meld
 dev-util/valgrind
 fonts/linuxlibertine
 fonts/unifont
@@ -35,11 +33,11 @@ gnome-desktop/gnome-calendar
 gnome-desktop/gnome-clocks
 gnome-desktop/gnome-contacts
 gnome-desktop/gnome-control-center
-gnome-desktop/gnome-flashback
 gnome-desktop/gnome-logs
 gnome-desktop/gnome-maps
 gnome-desktop/gnome-screenshot
 gnome-desktop/gnome-system-monitor
+gnome-desktop/gnome-tweak-tool
 gnome-desktop/gnome-weather
 gnome-desktop/nautilus
 gnome-desktop/seahorse
@@ -50,6 +48,7 @@ net-analyzer/traceroute
 net-analyzer/wireshark
 net-dns/bind-tools
 net-misc/gnome-nettool
+net-misc/iputils
 net-misc/keychain
 net-misc/mosh
 net-misc/mtr
@@ -58,7 +57,7 @@ net-misc/whois
 net-p2p/transmission
 net-utils/iftop
 net-www/chromium-stable
-net-www/nightly
+net-www/firefox
 net/autossh
 net/rabbitmq-server
 sys-apps/gptfdisk
