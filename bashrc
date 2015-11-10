@@ -7,12 +7,6 @@ case "${CATEGORY}/${PN}" in
     "sys-apps/paludis")
         base_CFLAGS="-march=native -pipe -O0 -g -ggdb3"
         ;;
-    "dev-lang/node")
-        base_CFLAGS="-march=native -pipe -O1"
-        ;;
-    "sys-devel/gcj")
-        base_LDFLAGS="-Wl,-O2"
-        ;;
 esac
 
 x86_64_pc_linux_gnu_CFLAGS="${base_CFLAGS}"
