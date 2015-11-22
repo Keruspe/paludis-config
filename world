@@ -6,7 +6,7 @@ app-scm/gitg
 app-text/wgetpaste
 app-vim/exheres-syntax
 app-virtualization/docker
-dev-haskell/hakyll
+dev-haskell/cabal-install
 dev-java/maven
 dev-lang/ghc
 dev-lang/openjdk8
