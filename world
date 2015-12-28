@@ -1,11 +1,9 @@
 app-admin/eclectic-fontconfig
 app-admin/password-store
-app-laptop/powertop
+app-editors/gedit
 app-paludis/paludis-scripts
-app-scm/gitg
 app-text/wgetpaste
 app-vim/exheres-syntax
-app-virtualization/docker
 dev-haskell/cabal-install
 dev-java/maven
 dev-lang/ghc
@@ -55,7 +53,8 @@ net-misc/mtr
 net-misc/telnet
 net-misc/whois
 net-p2p/transmission
-net-utils/iftop
+net-wireless/b43-firmware
+net-wireless/iw
 net-www/chromium-stable
 net-www/firefox
 net/autossh
@@ -74,6 +73,7 @@ sys-fs/cryptsetup
 sys-fs/dosfstools
 sys-fs/facron
 sys-fs/squashfs-tools
+sys-libs/openmp
 sys-process/htop
 sys-sound/alsa-utils
 x11-apps/Germinal
