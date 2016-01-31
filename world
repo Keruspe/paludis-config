@@ -15,6 +15,7 @@ dev-scala/sbt
 dev-util/exherbo-dev-tools
 dev-util/lcov
 dev-util/valgrind
+firmware/intel-bluetooth
 fonts/unifont
 gnome-desktop/GPaste
 gnome-desktop/baobab
@@ -37,6 +38,7 @@ media-plugins/gst-libav
 net-analyzer/traceroute
 net-analyzer/wireshark
 net-dns/bind-tools
+net-wireless/iwlwifi-8000-ucode
 net-misc/gnome-nettool
 net-misc/iputils
 net-misc/keychain
@@ -55,6 +57,7 @@ sys-apps/keyutils
 sys-apps/multiload
 sys-apps/pax-utils
 sys-apps/progress
+sys-auth/fprintd
 sys-boot/dracut
 sys-boot/efibootmgr
 sys-boot/gnu-efi
