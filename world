@@ -1,5 +1,4 @@
 app-admin/creds
-app-admin/eclectic-fontconfig
 app-admin/password-store
 app-editors/gedit
 app-paludis/paludis-scripts
@@ -30,7 +29,6 @@ gnome-desktop/gnome-control-center
 gnome-desktop/gnome-maps
 gnome-desktop/gnome-screenshot
 gnome-desktop/gnome-system-monitor
-gnome-desktop/gnome-tweak-tool
 gnome-desktop/gnome-weather
 gnome-desktop/nautilus
 gnome-desktop/seahorse
@@ -58,11 +56,9 @@ sys-apps/multiload
 sys-apps/pax-utils
 sys-apps/progress
 sys-auth/fprintd
-sys-boot/dracut
 sys-boot/efibootmgr
 sys-boot/gnu-efi
 sys-devel/gdb
-sys-fs/cryptsetup
 sys-fs/dosfstools
 sys-fs/facron
 sys-fs/squashfs-tools
@@ -74,4 +70,3 @@ x11-apps/setxkbmap
 x11-apps/xev
 x11-apps/xhost
 x11-apps/xrandr
-x11-drivers/xf86-input-libinput
