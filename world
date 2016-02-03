@@ -4,9 +4,7 @@ app-editors/gedit
 app-paludis/paludis-scripts
 app-text/wgetpaste
 app-vim/exheres-syntax
-dev-haskell/cabal-install
 dev-java/maven
-dev-lang/ghc
 dev-lang/icedtea-web
 dev-lang/openjdk8
 dev-lang/rust
