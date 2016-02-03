@@ -56,9 +56,6 @@ net-p2p/transmission
 net-wireless/ModemManager
 net-wireless/iw
 net-wireless/iwlwifi-8000-ucode
-net-www/chromium-stable
-net-www/chromium-stable-flash-plugin
-net-www/chromium-stable-widevine-plugin
 net-www/firefox
 net/autossh
 sys-apps/gptfdisk
