@@ -1,10 +1,13 @@
 app-admin/creds
 app-admin/eclectic-fontconfig
 app-editors/gedit
+app-editors/vim
 app-paludis/paludis-scripts
 app-text/wgetpaste
 app-vim/exheres-syntax
+dev-haskell/cabal-install
 dev-java/maven
+dev-lang/ghc
 dev-lang/icedtea-web
 dev-lang/openjdk8
 dev-lang/rust
@@ -61,12 +64,10 @@ sys-apps/iproute2
 sys-apps/keyutils
 sys-apps/man-pages-posix
 sys-apps/multiload
-sys-apps/pax-utils
 sys-apps/progress
 sys-auth/fprintd
 sys-boot/dracut
 sys-boot/efibootmgr
-sys-boot/gnu-efi
 sys-devel/gdb
 sys-fs/cryptsetup
 sys-fs/dosfstools
