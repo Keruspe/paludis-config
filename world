@@ -54,7 +54,6 @@ net-misc/keychain
 net-misc/mtr
 net-misc/telnet
 net-misc/whois
-net-p2p/transmission
 net-wireless/ModemManager
 net-wireless/iw
 net-wireless/iwlwifi-8000-ucode
