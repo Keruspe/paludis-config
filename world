@@ -1,5 +1,6 @@
 app-admin/creds
 app-admin/eclectic-fontconfig
+app-arch/pbzip2
 app-editors/gedit
 app-editors/vim
 app-paludis/paludis-scripts
