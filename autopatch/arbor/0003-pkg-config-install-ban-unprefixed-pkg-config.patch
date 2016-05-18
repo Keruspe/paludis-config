@@ -1,0 +1,86 @@
+From e4af0f6b62d80b09c0a9a2a31f40d4d2e6939d00 Mon Sep 17 00:00:00 2001
+From: Benedikt Morbach <moben@exherbo.org>
+Date: Sat, 9 Apr 2016 01:49:32 +0200
+Subject: [PATCH 3/3] pkg-config: install & ban unprefixed pkg-config
+
+The ${PKG_CONFIG} shuffle is for the migration from pre-cross.
+Switch it around to make sure pkg-config doesn't get called.
+
+Change the name of the alternative'd .m4 file to match pkgconf
+
+Change-Id: I36b93954655389d5312c2bae6ec749fe02911690
+---
+ ....1.exheres-0 => pkg-config-0.29.1-r1.exheres-0} | 28 +++++++++++++++-------
+ 1 file changed, 20 insertions(+), 8 deletions(-)
+ rename packages/dev-util/pkg-config/{pkg-config-0.29.1.exheres-0 => pkg-config-0.29.1-r1.exheres-0} (74%)
+
+diff --git a/packages/dev-util/pkg-config/pkg-config-0.29.1.exheres-0 b/packages/dev-util/pkg-config/pkg-config-0.29.1-r1.exheres-0
+similarity index 74%
+rename from packages/dev-util/pkg-config/pkg-config-0.29.1.exheres-0
+rename to packages/dev-util/pkg-config/pkg-config-0.29.1-r1.exheres-0
+index 5d65c36..8fa75de 100644
+--- a/packages/dev-util/pkg-config/pkg-config-0.29.1.exheres-0
++++ b/packages/dev-util/pkg-config/pkg-config-0.29.1-r1.exheres-0
+@@ -41,7 +41,7 @@ src_configure() {
+ 
+     for target in ${CROSS_COMPILE_TARGETS} ; do
+         local pc_path=/usr/${target}/lib/pkgconfig:/usr/share/pkgconfig
+-        local PKG_CONFIG=$(type -P pkg-config)
++        local PKG_CONFIG=$(type -P $(exhost --target)-pkg-config)
+ 
+         if option !targets:${target} ; then
+             echo "    Cross-Compile Target: ${target} (disabled)"
+@@ -56,7 +56,7 @@ src_configure() {
+         # PKG_CONFIG_ALLOW_SYSTEM_LIBS=true makes sure -L/usr/lib gets added during
+         # migration to /usr/host/lib
+             PKG_CONFIG_ALLOW_SYSTEM_LIBS=true \
+-            PKG_CONFIG=${PKG_CONFIG:-$(exhost --target)-pkg-config} \
++            PKG_CONFIG=${PKG_CONFIG:-pkg-config} \
+             PKG_CONFIG_LIBDIR=/usr/$(exhost --target)/lib/pkgconfig:/usr/lib/pkgconfig \
+         econf \
+             --program-prefix=${target}- \
+@@ -87,13 +87,9 @@ src_compile() {
+ }
+ 
+ src_install() {
+-    local alternatives=(
+-        pkg-config ${PN} 10
++    local alternatives=( pkg-config ${PN} 10 )
+ 
+-        /usr/share/aclocal/pkg.m4   pkg.m4.${PN}
+-    )
+     local target=
+-
+     for target in ${CROSS_COMPILE_TARGETS} ; do
+         if option !targets:${target} ; then
+             echo "    Cross-Compile Target: ${target} (disabled)"
+@@ -105,9 +101,25 @@ src_install() {
+         edo cd "${WORKBASE}/build/${target}"
+         emake -j1 DESTDIR="${IMAGE}" install
+ 
+-        alternatives+=( /usr/$(exhost --target)/bin/${target}-pkg-config ${target}-pkg-config.${PN} )
++        alternatives+=(
++            /usr/$(exhost --target)/bin/${target}-pkg-config    ${target}-pkg-config.${PN}
++            /usr/share/man/man1/${target}-pkg-config.1          ${target}-pkg-config.${PN}.1
++        )
+     done
+ 
++    # install the unprefixed tool for the native target and ban it in exheres
++    dosym $(exhost --target)-pkg-config.${PN}   /usr/$(exhost --target)/bin/pkg-config.${PN}
++    dosym $(exhost --target)-pkg-config.${PN}.1 /usr/share/man/man1/pkg-config.${PN}.1
++    dobanned pkg-config.${PN}
++
++    alternatives+=(
++        /usr/$(exhost --target)/bin/pkg-config  pkg-config.${PN}
++        "${BANNEDDIR}"/pkg-config               pkg-config.${PN}
++
++        /usr/share/aclocal/pkg.m4               pkg_${PN}.m4
++        /usr/share/man/man1/pkg-config.1        pkg-config.${PN}.1
++    )
++
+     alternatives_for "${alternatives[@]}"
+ }
+ 
+-- 
+2.8.2
+

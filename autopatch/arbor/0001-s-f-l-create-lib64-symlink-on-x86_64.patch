@@ -1,0 +1,34 @@
+From 7dac98dd5afe428007560e0f5d72d346266a4fdc Mon Sep 17 00:00:00 2001
+From: Marc-Antoine Perennou <keruspe@exherbo.org>
+Date: Fri, 13 May 2016 15:09:11 +0200
+Subject: [PATCH] s-f-l: create /lib64 symlink on x86_64-*
+
+Change-Id: I6a0541523977455ae1e118e56d7a469f67caea00
+Signed-off-by: Marc-Antoine Perennou <keruspe@exherbo.org>
+---
+ ....86-r1.exheres-0 => skeleton-filesystem-layout-0.86-r2.exheres-0} | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+ rename packages/sys-apps/skeleton-filesystem-layout/{skeleton-filesystem-layout-0.86-r1.exheres-0 => skeleton-filesystem-layout-0.86-r2.exheres-0} (96%)
+
+diff --git a/packages/sys-apps/skeleton-filesystem-layout/skeleton-filesystem-layout-0.86-r1.exheres-0 b/packages/sys-apps/skeleton-filesystem-layout/skeleton-filesystem-layout-0.86-r2.exheres-0
+similarity index 96%
+rename from packages/sys-apps/skeleton-filesystem-layout/skeleton-filesystem-layout-0.86-r1.exheres-0
+rename to packages/sys-apps/skeleton-filesystem-layout/skeleton-filesystem-layout-0.86-r2.exheres-0
+index 1d3406f..3cfa32a 100644
+--- a/packages/sys-apps/skeleton-filesystem-layout/skeleton-filesystem-layout-0.86-r1.exheres-0
++++ b/packages/sys-apps/skeleton-filesystem-layout/skeleton-filesystem-layout-0.86-r2.exheres-0
+@@ -140,7 +140,10 @@ pkg_postinst() {
+     # create host symlink for default target
+     edo ln -snTf $(exhost --build) "${ROOT}"usr/host
+ 
+-    edo ln -snTf lib "${ROOT}"usr/host/lib64
++    if [[ "$(exhost --target)" == x86_64-* ]]; then
++        edo ln -snTf lib "${ROOT}"usr/$(exhost --build)/lib64
++        edo ln -snTf usr/$(exhost --build)/lib "${ROOT}"lib64
++    fi
+ 
+     # create compat symlinks for bin, sbin, include, lib{,exec} and /usr/local
+     for x in bin sbin include lib libexec; do
+-- 
+2.8.2
+

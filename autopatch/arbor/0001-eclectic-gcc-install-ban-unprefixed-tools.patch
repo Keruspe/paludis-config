@@ -1,0 +1,59 @@
+From 1d8a54abb72213bb6ef501d7f53035b1443ee94b Mon Sep 17 00:00:00 2001
+From: Benedikt Morbach <moben@exherbo.org>
+Date: Thu, 24 Mar 2016 14:47:31 +0100
+Subject: [PATCH 1/3] eclectic-gcc: install & ban unprefixed tools
+
+Change-Id: I5aba923b44216b9fa567046f78268003baed9242
+---
+ ...-0-r3.exheres-0 => eclectic-gcc-0-r4.exheres-0} | 28 ++++++++++++----------
+ 1 file changed, 16 insertions(+), 12 deletions(-)
+ rename packages/app-admin/eclectic-gcc/{eclectic-gcc-0-r3.exheres-0 => eclectic-gcc-0-r4.exheres-0} (74%)
+
+diff --git a/packages/app-admin/eclectic-gcc/eclectic-gcc-0-r3.exheres-0 b/packages/app-admin/eclectic-gcc/eclectic-gcc-0-r4.exheres-0
+similarity index 74%
+rename from packages/app-admin/eclectic-gcc/eclectic-gcc-0-r3.exheres-0
+rename to packages/app-admin/eclectic-gcc/eclectic-gcc-0-r4.exheres-0
+index ec813a5..ce636ed 100644
+--- a/packages/app-admin/eclectic-gcc/eclectic-gcc-0-r3.exheres-0
++++ b/packages/app-admin/eclectic-gcc/eclectic-gcc-0-r4.exheres-0
+@@ -50,21 +50,25 @@ DEPENDENCIES="
+ 
+ WORK="${WORKBASE}"
+ 
++eclectic-gcc_alternatives() {
++    local target=${1} name=${2} gnu_name=${3}
++
++    local alternatives=(
++        /usr/$(exhost --target)/bin/${target}-${name}   ${target}-${gnu_name}
++        /usr/share/man/man1/${target}-${name}.1         ${target}-${gnu_name}.1
++        /usr/$(exhost --target)/bin/${name}             ${gnu_name}
++        "${BANNEDDIR}"/${name}                          ${gnu_name}
++    )
++    alternatives_for ${name} gcc 1000 "${alternatives[@]}"
++}
++
+ src_install() {
+     for target in ${CROSS_COMPILE_TARGETS};do
+         if option targets:${target};then
+-            alternatives_for cc     gcc 1000    \
+-                /usr/$(exhost --target)/bin/${target}-cc    ${target}-gcc       \
+-                /usr/share/man/man1/${target}-cc.1          ${target}-gcc.1
+-            alternatives_for c++    gcc 1000    \
+-                /usr/$(exhost --target)/bin/${target}-c++   ${target}-g++       \
+-                /usr/share/man/man1/${target}-c++.1         ${target}-g++.1
+-            alternatives_for cpp    gcc 1000    \
+-                /usr/$(exhost --target)/bin/${target}-cpp   ${target}-gcc-cpp   \
+-                /usr/share/man/man1/${target}-cpp.1         ${target}-gcc-cpp.1
+-            alternatives_for fc     gcc 1000    \
+-                /usr/$(exhost --target)/bin/${target}-fc    ${target}-gfortran  \
+-                /usr/share/man/man1/${target}-fc.1          ${target}-gfortran.1
++            eclectic-gcc_alternatives ${target} cc  gcc
++            eclectic-gcc_alternatives ${target} c++ g++
++            eclectic-gcc_alternatives ${target} cpp gcc-cpp
++            eclectic-gcc_alternatives ${target} fc  gfortran
+         fi
+     done
+ }
+-- 
+2.8.2
+
