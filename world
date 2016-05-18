@@ -9,6 +9,7 @@ app-vim/exheres-syntax
 dev-haskell/cabal-install
 dev-java/maven
 dev-lang/ghc
+dev-lang/go
 dev-lang/icedtea-web
 dev-lang/openjdk8
 dev-lang/rust
@@ -42,7 +43,6 @@ gnome-desktop/gnome-tweak-tool
 gnome-desktop/gnome-weather
 gnome-desktop/GPaste
 gnome-desktop/nautilus
-gnome-desktop/seahorse
 gnome-desktop/totem
 inputmethods/ibus-anthy
 media-plugins/gst-libav
@@ -67,6 +67,7 @@ sys-apps/man-pages-posix
 sys-apps/progress
 sys-apps/usbutils
 sys-auth/fprintd
+sys-auth/google-authenticator
 sys-boot/dracut
 sys-boot/efibootmgr
 sys-devel/gdb
