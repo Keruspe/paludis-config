@@ -1,6 +1,7 @@
 app-admin/creds
 app-admin/eclectic-fontconfig
 app-arch/pbzip2
+app-crypt/ccid
 app-editors/gedit
 app-editors/vim
 app-paludis/paludis-scripts
@@ -10,8 +11,8 @@ dev-haskell/cabal-install
 dev-java/maven
 dev-lang/ghc
 dev-lang/go
+dev-lang/icedtea8
 dev-lang/icedtea-web
-dev-lang/openjdk8
 dev-lang/rust
 dev-libs/compiler-rt
 dev-libs/libappindicator
@@ -20,6 +21,8 @@ dev-perl/Crypt-RC4
 dev-perl/Net-SMTP-SSL
 dev-perl/TermReadKey
 dev-rust/cargo
+dev-rust/cargo-outdated
+dev-rust/cargo-watch
 dev-scala/sbt
 dev-util/exherbo-dev-tools
 dev-util/lcov
@@ -33,6 +36,7 @@ gnome-desktop/dconf-editor
 gnome-desktop/eog
 gnome-desktop/evince
 gnome-desktop/file-roller
+gnome-desktop/gnome-builder
 gnome-desktop/gnome-calculator
 gnome-desktop/gnome-calendar
 gnome-desktop/gnome-clocks
@@ -43,6 +47,7 @@ gnome-desktop/gnome-tweak-tool
 gnome-desktop/gnome-weather
 gnome-desktop/GPaste
 gnome-desktop/nautilus
+gnome-desktop/sysprof
 gnome-desktop/totem
 inputmethods/ibus-anthy
 media-plugins/gst-libav
@@ -57,6 +62,7 @@ net-misc/mtr
 net-misc/socat
 net-misc/telnet
 net-misc/whois
+net/neard
 net-wireless/iw
 net-wireless/ModemManager
 net-www/firefox
@@ -68,6 +74,7 @@ sys-apps/progress
 sys-apps/usbutils
 sys-auth/fprintd
 sys-auth/google-authenticator
+sys-auth/poldi
 sys-boot/dracut
 sys-boot/efibootmgr
 sys-devel/gdb
