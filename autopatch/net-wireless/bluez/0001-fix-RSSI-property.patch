@@ -1,0 +1,26 @@
+From a59d8aae31f9b43d2f72e5a119274fc77637276a Mon Sep 17 00:00:00 2001
+From: Marc-Antoine Perennou <Marc-Antoine@Perennou.com>
+Date: Sat, 18 Jun 2016 23:28:10 +0200
+Subject: [PATCH] fix RSSI property
+
+Signed-off-by: Marc-Antoine Perennou <Marc-Antoine@Perennou.com>
+---
+ src/device.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/device.c b/src/device.c
+index 83a794e..c103306 100644
+--- a/src/device.c
++++ b/src/device.c
+@@ -920,7 +920,7 @@ static gboolean dev_property_exists_rssi(const GDBusPropertyTable *property,
+ {
+ 	struct btd_device *dev = data;
+ 
+-	if (dev->rssi == 0)
++	if (dev->rssi == 127)
+ 		return FALSE;
+ 
+ 	return TRUE;
+-- 
+2.9.0
+
