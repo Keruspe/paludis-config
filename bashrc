@@ -7,6 +7,9 @@ case "${CATEGORY}/${PN}" in
     "sys-apps/paludis")
         base_CFLAGS="-march=native -pipe -O0 -g -ggdb3"
         ;;
+    "sys-apps/dbus-broker")
+        base_CFLAGS="-march=native -pipe -O0 -g -ggdb3"
+        ;;
 esac
 
 x86_64_pc_linux_gnu_CFLAGS="${base_CFLAGS}"
