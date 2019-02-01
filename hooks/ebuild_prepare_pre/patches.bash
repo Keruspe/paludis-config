@@ -1,7 +1,7 @@
 # vim: set sw=4 sts=4 et :
 
 (
-    edo cd "${WORK}"
+    edo pushd "${MESON_SOURCE:-${WORK}}"
     patchdir="/etc/paludis/autopatch/${CATEGORY}/${PN}"
     if [[ -d "${patchdir}" ]] ; then
         einfo "Applying user patches"
@@ -12,4 +12,5 @@
         done
         einfo "Done"
     fi
+    edo popd
 )
