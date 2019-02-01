@@ -14,6 +14,9 @@ case "${CATEGORY}/${PN}" in
         base_CFLAGS="-march=ivybridge -mtune=ivybridge -pipe -O2"
         base_LDFLAGS="-Wl,-O2"
         ;;
+    "media-libs/v4l-utils"|"net-apps/NetworkManager")
+        base_LDFLAGS="-Wl,-O2"
+        ;;
 esac
 
 x86_64_pc_linux_gnu_CFLAGS="${base_CFLAGS}"
