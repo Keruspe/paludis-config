@@ -57,6 +57,7 @@ gnome-desktop/totem
 gnome-desktop/vinagre
 inputmethods/mozc
 mail-client/evolution
+media-gfx/simple-scan
 media-libs/libldac
 media-libs/libopenaptx
 media-plugins/gst-libav
