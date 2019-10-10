@@ -1,0 +1,105 @@
+From 7c03ddde86d1d26b026b41102e2dec58c38940c6 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Pali=20Roh=C3=A1r?= <pali.rohar@gmail.com>
+Date: Thu, 2 May 2019 17:42:36 +0200
+Subject: [PATCH 04/10] bluetooth: Set initial A2DP profile which bluez already
+ activated
+
+Bluez and remote device decide which A2DP codec would use. Use this
+selected A2DP codec as initial profile in pulseaudio.
+
+In most cases it is either last used codec or codec with higher priority by
+defined by remote device.
+
+To detect which A2DP profile was activated by bluez, look at bluez
+transport state.
+---
+ src/modules/bluetooth/module-bluez5-device.c | 66 +++++++++++++++++++-
+ 1 file changed, 65 insertions(+), 1 deletion(-)
+
+diff --git a/src/modules/bluetooth/module-bluez5-device.c b/src/modules/bluetooth/module-bluez5-device.c
+index fb77afaad..9afd1dbd1 100644
+--- a/src/modules/bluetooth/module-bluez5-device.c
++++ b/src/modules/bluetooth/module-bluez5-device.c
+@@ -1993,6 +1993,70 @@ static int uuid_to_profile(const char *uuid, pa_bluetooth_profile_t *_r) {
+     return 0;
+ }
+ 
++static void choose_initial_profile(struct userdata *u) {
++    struct pa_bluetooth_transport *transport;
++    pa_card_profile *iter_profile;
++    pa_card_profile *profile;
++    void *state;
++
++    pa_log_debug("Looking for A2DP profile which has active bluez transport for card %s", u->card->name);
++
++    profile = NULL;
++
++    /* First try to find the best A2DP profile with transport in playing state */
++    PA_HASHMAP_FOREACH(iter_profile, u->card->profiles, state) {
++        transport = u->device->transports[*(pa_bluetooth_profile_t *)PA_CARD_PROFILE_DATA(iter_profile)];
++
++        /* Ignore profiles without active bluez transport in playing state */
++        if (!transport || transport->state != PA_BLUETOOTH_TRANSPORT_STATE_PLAYING)
++            continue;
++
++        /* Ignore non-A2DP profiles */
++        if (!pa_startswith(iter_profile->name, "a2dp_"))
++            continue;
++
++        pa_log_debug("%s has active bluez transport in playing state", iter_profile->name);
++
++        if (!profile || iter_profile->priority > profile->priority)
++            profile = iter_profile;
++    }
++
++    /* Second if there is no profile A2DP profile with transport in playing state, look at active transports */
++    if (!profile) {
++        PA_HASHMAP_FOREACH(iter_profile, u->card->profiles, state) {
++            transport = u->device->transports[*(pa_bluetooth_profile_t *)PA_CARD_PROFILE_DATA(iter_profile)];
++
++            /* Ignore profiles without active bluez transport */
++            if (!transport || transport->state == PA_BLUETOOTH_TRANSPORT_STATE_DISCONNECTED)
++                continue;
++
++            /* Ignore non-A2DP profiles */
++            if (!pa_startswith(iter_profile->name, "a2dp_"))
++                continue;
++
++            pa_log_debug("%s has active bluez transport", iter_profile->name);
++
++            if (!profile || iter_profile->priority > profile->priority)
++                profile = iter_profile;
++        }
++    }
++
++    /* When there is no active A2DP bluez transport, fallback to core pulseaudio function for choosing initial profile */
++    if (!profile) {
++        pa_log_debug("No A2DP profile with bluez active transport was found for card %s", u->card->name);
++        pa_card_choose_initial_profile(u->card);
++        return;
++    }
++
++    /* Do same job as pa_card_choose_initial_profile() */
++    pa_log_info("Setting initial A2DP profile '%s' for card %s", profile->name, u->card->name);
++    u->card->active_profile = profile;
++    u->card->save_profile = false;
++
++    /* Let policy modules override the default. */
++    pa_hook_fire(&u->card->core->hooks[PA_CORE_HOOK_CARD_CHOOSE_INITIAL_PROFILE], u->card);
++}
++
+ /* Run from main thread */
+ static int add_card(struct userdata *u) {
+     const pa_bluetooth_device *d;
+@@ -2063,7 +2127,7 @@ static int add_card(struct userdata *u) {
+ 
+     u->card->userdata = u;
+     u->card->set_profile = set_profile_cb;
+-    pa_card_choose_initial_profile(u->card);
++    choose_initial_profile(u);
+     pa_card_put(u->card);
+ 
+     p = PA_CARD_PROFILE_DATA(u->card->active_profile);
+-- 
+2.23.0
+

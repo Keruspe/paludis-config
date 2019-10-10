@@ -1,0 +1,536 @@
+From 78a9aa630ed587e0f02748fdde3c6d0804b4d000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Pali=20Roh=C3=A1r?= <pali.rohar@gmail.com>
+Date: Sat, 12 Jan 2019 15:29:28 +0100
+Subject: [PATCH 06/10] bluetooth: Add A2DP FastStream codec support
+
+This patch provides support for FastStream codec in bluetooth A2DP profile.
+FastStream codec is bi-directional, which means that support both music
+playback and microphone voice at the same time.
+
+FastStream codec is just SBC codec with fixed parameters. For playback are
+used following parameters: 48.0kHz or 44.1kHz, Blocks 16, Sub-bands 8,
+Joint Stereo, Loudness, Bitpool = 29 (data rate = 212kbps, packet size =
+(71+1)*3 <= DM5 = 220, with 3 SBC frames). SBC frame size is 71 bytes, but
+FastStream is zero-padded to the even size (72). For microphone are used
+following SBC parameters: 16kHz, Mono, Blocks 16, Sub-bands 8, Loudness,
+Bitpool = 32 (data rate = 72kbps, packet size = 72*3 <= DM5 = 220, with
+3 SBC frames).
+
+So FastStream codec is equivalent to SBC in Low Quality settings. But the
+main benefit of FastStream codec is support for microphone voice channel
+for audio calls. Compared to bluetooth HSP profile (with CVSD codec), it
+provides better audio quality for both playback and recording.
+---
+ src/Makefile.am                               |   2 +
+ src/modules/bluetooth/a2dp-codec-faststream.c | 454 ++++++++++++++++++
+ src/modules/bluetooth/a2dp-codec-util.c       |   2 +
+ src/modules/bluetooth/meson.build             |   1 +
+ 4 files changed, 459 insertions(+)
+ create mode 100644 src/modules/bluetooth/a2dp-codec-faststream.c
+
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 47d4cdd76..58ce08859 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -2164,6 +2164,8 @@ libbluez5_util_la_SOURCES += modules/bluetooth/a2dp-codec-sbc.c
+ libbluez5_util_la_LIBADD += $(SBC_LIBS)
+ libbluez5_util_la_CFLAGS += $(SBC_CFLAGS)
+ 
++libbluez5_util_la_SOURCES += modules/bluetooth/a2dp-codec-faststream.c
++
+ if HAVE_OPENAPTX
+ libbluez5_util_la_SOURCES += modules/bluetooth/a2dp-codec-aptx.c
+ libbluez5_util_la_CPPFLAGS += $(OPENAPTX_CPPFLAGS)
+diff --git a/src/modules/bluetooth/a2dp-codec-faststream.c b/src/modules/bluetooth/a2dp-codec-faststream.c
+new file mode 100644
+index 000000000..0ce28c322
+--- /dev/null
++++ b/src/modules/bluetooth/a2dp-codec-faststream.c
+@@ -0,0 +1,454 @@
++/***
++  This file is part of PulseAudio.
++
++  Copyright 2018-2019 Pali Rohár <pali.rohar@gmail.com>
++
++  PulseAudio is free software; you can redistribute it and/or modify
++  it under the terms of the GNU Lesser General Public License as
++  published by the Free Software Foundation; either version 2.1 of the
++  License, or (at your option) any later version.
++
++  PulseAudio is distributed in the hope that it will be useful, but
++  WITHOUT ANY WARRANTY; without even the implied warranty of
++  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
++  General Public License for more details.
++
++  You should have received a copy of the GNU Lesser General Public
++  License along with PulseAudio; if not, see <http://www.gnu.org/licenses/>.
++***/
++
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
++#include <pulsecore/core-util.h>
++#include <pulsecore/log.h>
++#include <pulsecore/macro.h>
++#include <pulsecore/once.h>
++#include <pulse/sample.h>
++#include <pulse/xmalloc.h>
++
++#include <sbc/sbc.h>
++
++#include "a2dp-codecs.h"
++#include "a2dp-codec-api.h"
++
++struct faststream_info {
++    sbc_t sbc;                           /* Codec data */
++    size_t codesize, frame_length;       /* SBC Codesize, frame_length. We simply cache those values here */
++    bool is_backchannel;
++    uint8_t frequency;
++};
++
++static bool can_accept_capabilities(const uint8_t *capabilities_buffer, uint8_t capabilities_size, bool for_encoding) {
++    const a2dp_faststream_t *capabilities = (const a2dp_faststream_t *) capabilities_buffer;
++
++    if (A2DP_GET_VENDOR_ID(capabilities->info) != FASTSTREAM_VENDOR_ID || A2DP_GET_CODEC_ID(capabilities->info) != FASTSTREAM_CODEC_ID)
++        return false;
++
++    if (!(capabilities->direction & FASTSTREAM_DIRECTION_SINK) || !(capabilities->direction & FASTSTREAM_DIRECTION_SOURCE))
++        return false;
++
++    if (!(capabilities->sink_frequency & (FASTSTREAM_SINK_SAMPLING_FREQ_44100 | FASTSTREAM_SINK_SAMPLING_FREQ_48000)))
++        return false;
++
++    if (!(capabilities->source_frequency & FASTSTREAM_SOURCE_SAMPLING_FREQ_16000))
++        return false;
++
++    return true;
++}
++
++static const char *choose_remote_endpoint(const pa_hashmap *capabilities_hashmap, const pa_sample_spec *default_sample_spec, bool for_encoding) {
++    const pa_a2dp_codec_capabilities *a2dp_capabilities;
++    const char *key;
++    void *state;
++
++    /* There is no preference, just choose random valid entry */
++    PA_HASHMAP_FOREACH_KV(key, a2dp_capabilities, capabilities_hashmap, state) {
++        if (can_accept_capabilities(a2dp_capabilities->buffer, a2dp_capabilities->size, for_encoding))
++            return key;
++    }
++
++    return NULL;
++}
++
++static uint8_t fill_capabilities(uint8_t capabilities_buffer[MAX_A2DP_CAPS_SIZE]) {
++    a2dp_faststream_t *capabilities = (a2dp_faststream_t *) capabilities_buffer;
++
++    pa_zero(*capabilities);
++
++    capabilities->info = A2DP_SET_VENDOR_ID_CODEC_ID(FASTSTREAM_VENDOR_ID, FASTSTREAM_CODEC_ID);
++    capabilities->direction = FASTSTREAM_DIRECTION_SINK | FASTSTREAM_DIRECTION_SOURCE;
++    capabilities->sink_frequency = FASTSTREAM_SINK_SAMPLING_FREQ_44100 | FASTSTREAM_SINK_SAMPLING_FREQ_48000;
++    capabilities->source_frequency = FASTSTREAM_SOURCE_SAMPLING_FREQ_16000;
++
++    return sizeof(*capabilities);
++}
++
++static bool is_configuration_valid(const uint8_t *config_buffer, uint8_t config_size) {
++    const a2dp_faststream_t *config = (const a2dp_faststream_t *) config_buffer;
++    uint8_t sink_frequency;
++
++    if (config_size != sizeof(*config)) {
++        pa_log_error("Invalid size of config buffer");
++        return false;
++    }
++
++    if (A2DP_GET_VENDOR_ID(config->info) != FASTSTREAM_VENDOR_ID || A2DP_GET_CODEC_ID(config->info) != FASTSTREAM_CODEC_ID) {
++        pa_log_error("Invalid vendor codec information in configuration");
++        return false;
++    }
++
++    if (!(config->direction & FASTSTREAM_DIRECTION_SINK) || !(config->direction & FASTSTREAM_DIRECTION_SOURCE)) {
++        pa_log_error("Invalid direction in configuration");
++        return false;
++    }
++
++    sink_frequency = config->sink_frequency;
++
++    /* Some headsets are buggy and set both 48 kHz and 44.1 kHz in
++     * the config. In such situation trying to send audio at 44.1 kHz
++     * results in choppy audio, so we have to assume that the headset
++     * actually wants 48 kHz audio. */
++    if (sink_frequency == (FASTSTREAM_SINK_SAMPLING_FREQ_44100 | FASTSTREAM_SINK_SAMPLING_FREQ_48000))
++        sink_frequency = FASTSTREAM_SINK_SAMPLING_FREQ_48000;
++
++    if (sink_frequency != FASTSTREAM_SINK_SAMPLING_FREQ_44100 && sink_frequency != FASTSTREAM_SINK_SAMPLING_FREQ_48000) {
++        pa_log_error("Invalid sink sampling frequency in configuration");
++        return false;
++    }
++
++    if (config->source_frequency != FASTSTREAM_SOURCE_SAMPLING_FREQ_16000) {
++        pa_log_error("Invalid source sampling frequency in configuration");
++        return false;
++    }
++
++    return true;
++}
++
++static uint8_t fill_preferred_configuration(const pa_sample_spec *default_sample_spec, const uint8_t *capabilities_buffer, uint8_t capabilities_size, uint8_t config_buffer[MAX_A2DP_CAPS_SIZE]) {
++    a2dp_faststream_t *config = (a2dp_faststream_t *) config_buffer;
++    const a2dp_faststream_t *capabilities = (const a2dp_faststream_t *) capabilities_buffer;
++    int i;
++
++    static const struct {
++        uint32_t rate;
++        uint8_t cap;
++    } freq_table[] = {
++        { 44100U, FASTSTREAM_SINK_SAMPLING_FREQ_44100 },
++        { 48000U, FASTSTREAM_SINK_SAMPLING_FREQ_48000 }
++    };
++
++    if (capabilities_size != sizeof(*capabilities)) {
++        pa_log_error("Invalid size of capabilities buffer");
++        return 0;
++    }
++
++    pa_zero(*config);
++
++    if (A2DP_GET_VENDOR_ID(capabilities->info) != FASTSTREAM_VENDOR_ID || A2DP_GET_CODEC_ID(capabilities->info) != FASTSTREAM_CODEC_ID) {
++        pa_log_error("No supported vendor codec information");
++        return 0;
++    }
++
++    config->info = A2DP_SET_VENDOR_ID_CODEC_ID(FASTSTREAM_VENDOR_ID, FASTSTREAM_CODEC_ID);
++
++    /* Find the lowest freq that is at least as high as the requested sampling rate */
++    for (i = 0; (unsigned) i < PA_ELEMENTSOF(freq_table); i++)
++        if (freq_table[i].rate >= default_sample_spec->rate && (capabilities->sink_frequency & freq_table[i].cap)) {
++            config->sink_frequency = freq_table[i].cap;
++            break;
++        }
++
++    if ((unsigned) i == PA_ELEMENTSOF(freq_table)) {
++        for (--i; i >= 0; i--) {
++            if (capabilities->sink_frequency & freq_table[i].cap) {
++                config->sink_frequency = freq_table[i].cap;
++                break;
++            }
++        }
++
++        if (i < 0) {
++            pa_log_error("Not suitable sample rate");
++            return 0;
++        }
++    }
++
++    pa_assert((unsigned) i < PA_ELEMENTSOF(freq_table));
++
++    if (!(capabilities->direction & FASTSTREAM_DIRECTION_SINK)) {
++        pa_log_error("No sink support");
++        return 0;
++    }
++
++    if (!(capabilities->direction & FASTSTREAM_DIRECTION_SOURCE)) {
++        pa_log_error("No source support");
++        return 0;
++    }
++
++    if (!(capabilities->source_frequency & FASTSTREAM_SOURCE_SAMPLING_FREQ_16000)) {
++        pa_log_error("No suitable source sample rate");
++        return 0;
++    }
++
++    config->direction = FASTSTREAM_DIRECTION_SINK | FASTSTREAM_DIRECTION_SOURCE;
++    config->source_frequency = FASTSTREAM_SOURCE_SAMPLING_FREQ_16000;
++
++    return sizeof(*config);
++}
++
++static void set_params(struct faststream_info *faststream_info) {
++    /* FastStream uses SBC codec with these fixed parameters */
++    if (faststream_info->is_backchannel) {
++        faststream_info->sbc.mode = SBC_MODE_MONO;
++        faststream_info->sbc.bitpool = 32;
++    } else {
++        faststream_info->sbc.mode = SBC_MODE_JOINT_STEREO;
++        faststream_info->sbc.bitpool = 29;
++    }
++
++    faststream_info->sbc.frequency = faststream_info->frequency;
++    faststream_info->sbc.blocks = SBC_BLK_16;
++    faststream_info->sbc.subbands = SBC_SB_8;
++    faststream_info->sbc.allocation = SBC_AM_LOUDNESS;
++    faststream_info->sbc.endian = SBC_LE;
++
++    faststream_info->codesize = sbc_get_codesize(&faststream_info->sbc);
++    faststream_info->frame_length = sbc_get_frame_length(&faststream_info->sbc);
++
++    /* Frame length for FastStream is zero-padded to even byte length
++     * libsbc just pad frame length to an integral number of bytes */
++    if (faststream_info->frame_length & 1)
++        faststream_info->frame_length++;
++
++    /* Frame length for FastStream is 72 always bytes */
++    pa_assert(faststream_info->frame_length == 72);
++}
++
++static void *init(bool for_encoding, bool for_backchannel, const uint8_t *config_buffer, uint8_t config_size, pa_sample_spec *sample_spec) {
++    struct faststream_info *faststream_info;
++    const a2dp_faststream_t *config = (const a2dp_faststream_t *) config_buffer;
++    int ret;
++
++    pa_assert(config_size == sizeof(*config));
++
++    faststream_info = pa_xnew0(struct faststream_info, 1);
++    faststream_info->is_backchannel = for_backchannel;
++
++    ret = sbc_init(&faststream_info->sbc, 0);
++    if (ret != 0) {
++        pa_xfree(faststream_info);
++        pa_log_error("SBC initialization failed: %d", ret);
++        return NULL;
++    }
++
++    sample_spec->format = PA_SAMPLE_S16LE;
++
++    if (faststream_info->is_backchannel) {
++        if (config->source_frequency == FASTSTREAM_SOURCE_SAMPLING_FREQ_16000) {
++            faststream_info->frequency = SBC_FREQ_16000;
++            sample_spec->rate = 16000U;
++        } else {
++            pa_assert_not_reached();
++        }
++
++        sample_spec->channels = 1;
++    } else {
++        uint8_t sink_frequency = config->sink_frequency;
++
++        /* Some headsets are buggy and set both 48 kHz and 44.1 kHz in
++         * the config. In such situation trying to send audio at 44.1 kHz
++         * results in choppy audio, so we have to assume that the headset
++         * actually wants 48 kHz audio. */
++        if (sink_frequency == (FASTSTREAM_SINK_SAMPLING_FREQ_44100 | FASTSTREAM_SINK_SAMPLING_FREQ_48000))
++            sink_frequency = FASTSTREAM_SINK_SAMPLING_FREQ_48000;
++
++        if (sink_frequency == FASTSTREAM_SINK_SAMPLING_FREQ_48000) {
++            faststream_info->frequency = SBC_FREQ_48000;
++            sample_spec->rate = 48000U;
++        } else if (config->sink_frequency == FASTSTREAM_SINK_SAMPLING_FREQ_44100) {
++            faststream_info->frequency = SBC_FREQ_44100;
++            sample_spec->rate = 44100U;
++        } else {
++            pa_assert_not_reached();
++        }
++
++        sample_spec->channels = 2;
++    }
++
++    set_params(faststream_info);
++
++    pa_log_info("SBC parameters: allocation=%s, subbands=%u, blocks=%u, mode=%s bitpool=%u codesize=%u frame_length=%u",
++                faststream_info->sbc.allocation ? "SNR" : "Loudness", faststream_info->sbc.subbands ? 8 : 4,
++                (faststream_info->sbc.blocks+1)*4, faststream_info->sbc.mode == SBC_MODE_MONO ? "Mono" :
++                faststream_info->sbc.mode == SBC_MODE_DUAL_CHANNEL ? "DualChannel" :
++                faststream_info->sbc.mode == SBC_MODE_STEREO ? "Stereo" : "JointStereo",
++                faststream_info->sbc.bitpool, (unsigned)faststream_info->codesize, (unsigned)faststream_info->frame_length);
++
++    return faststream_info;
++}
++
++static void deinit(void *codec_info) {
++    struct faststream_info *faststream_info = (struct faststream_info *) codec_info;
++
++    sbc_finish(&faststream_info->sbc);
++    pa_xfree(faststream_info);
++}
++
++static int reset(void *codec_info) {
++    struct faststream_info *faststream_info = (struct faststream_info *) codec_info;
++    int ret;
++
++    ret = sbc_reinit(&faststream_info->sbc, 0);
++    if (ret != 0) {
++        pa_log_error("SBC reinitialization failed: %d", ret);
++        return -1;
++    }
++
++    /* sbc_reinit() sets also default parameters, so reset them back */
++    set_params(faststream_info);
++    return 0;
++}
++
++static size_t get_read_block_size(void *codec_info, size_t read_link_mtu) {
++    struct faststream_info *faststream_info = (struct faststream_info *) codec_info;
++    size_t frame_count;
++
++    if (read_link_mtu < 220)
++        pa_log_error("Link MTU for FastStream codec is %u too small (need at least 220)", (unsigned)read_link_mtu);
++
++    frame_count = read_link_mtu / faststream_info->frame_length;
++    return frame_count * faststream_info->codesize;
++}
++
++static size_t get_write_block_size(void *codec_info, size_t write_link_mtu) {
++    /* FastStream must fit into DM5 packet (220 bytes) so ensure that we never generate larger packet */
++    return get_read_block_size(codec_info, (write_link_mtu > 220 ? 220 : write_link_mtu));
++}
++
++static size_t reduce_encoder_bitrate(void *codec_info, size_t write_link_mtu) {
++    return 0;
++}
++
++static size_t encode_buffer(void *codec_info, uint32_t timestamp, const uint8_t *input_buffer, size_t input_size, uint8_t *output_buffer, size_t output_size, size_t *processed) {
++    struct faststream_info *faststream_info = (struct faststream_info *) codec_info;
++    uint8_t *d;
++    const uint8_t *p;
++    size_t to_write, to_encode;
++
++    p = input_buffer;
++    to_encode = input_size;
++
++    d = output_buffer;
++    to_write = output_size;
++
++    while (PA_LIKELY(to_encode > 0 && to_write > 0)) {
++        ssize_t written;
++        ssize_t encoded;
++
++        encoded = sbc_encode(&faststream_info->sbc,
++                             p, to_encode,
++                             d, (to_write & ~0x1),
++                             &written);
++
++        if (PA_UNLIKELY(encoded <= 0)) {
++            pa_log_error("SBC encoding error (%li)", (long) encoded);
++            break;
++        }
++
++        if (PA_UNLIKELY(written < 0)) {
++            pa_log_error("SBC encoding error (%li)", (long) written);
++            break;
++        }
++
++        /* If necessary add zero padding to have frame size of even length */
++        if (written & 1)
++            d[written++] = 0;
++
++        pa_assert_fp((size_t) encoded <= to_encode);
++        pa_assert_fp((size_t) encoded == faststream_info->codesize);
++
++        pa_assert_fp((size_t) written <= to_write);
++        pa_assert_fp((size_t) written == faststream_info->frame_length);
++
++        p += encoded;
++        to_encode -= encoded;
++
++        d += written;
++        to_write -= written;
++    }
++
++    PA_ONCE_BEGIN {
++        pa_log_debug("Using FastStream codec with SBC codec implementation: %s", pa_strnull(sbc_get_implementation_info(&faststream_info->sbc)));
++    } PA_ONCE_END;
++
++    *processed = p - input_buffer;
++    return d - output_buffer;
++}
++
++static size_t decode_buffer(void *codec_info, uint32_t *timestamp, const uint8_t *input_buffer, size_t input_size, uint8_t *output_buffer, size_t output_size, size_t *processed) {
++    struct faststream_info *faststream_info = (struct faststream_info *) codec_info;
++    const uint8_t *p;
++    uint8_t *d;
++    size_t to_write, to_decode;
++
++    p = input_buffer;
++    to_decode = input_size;
++
++    d = output_buffer;
++    to_write = output_size;
++
++    while (PA_LIKELY(to_decode > 0 && to_write > 0)) {
++        size_t written;
++        ssize_t decoded;
++
++        decoded = sbc_decode(&faststream_info->sbc,
++                             p, to_decode,
++                             d, to_write,
++                             &written);
++
++        if (PA_UNLIKELY(decoded <= 0)) {
++            pa_log_error("SBC decoding error (%li)", (long) decoded);
++            break;
++        }
++
++        /* Frame size is of even length so process zero padding */
++        if ((size_t)decoded < to_decode && (decoded & 1))
++            decoded++;
++
++        pa_assert_fp((size_t) decoded <= to_decode);
++        pa_assert_fp((size_t) decoded == faststream_info->frame_length);
++
++        pa_assert_fp((size_t) written <= to_write);
++        pa_assert_fp((size_t) written == faststream_info->codesize);
++
++        p += decoded;
++        to_decode -= decoded;
++
++        d += written;
++        to_write -= written;
++    }
++
++    *processed = p - input_buffer;
++    return d - output_buffer;
++}
++
++const pa_a2dp_codec pa_a2dp_codec_faststream = {
++    .name = "faststream",
++    .description = "FastStream",
++    .id = { A2DP_CODEC_VENDOR, FASTSTREAM_VENDOR_ID, FASTSTREAM_CODEC_ID },
++    .support_backchannel = true,
++    .can_accept_capabilities = can_accept_capabilities,
++    .choose_remote_endpoint = choose_remote_endpoint,
++    .fill_capabilities = fill_capabilities,
++    .is_configuration_valid = is_configuration_valid,
++    .fill_preferred_configuration = fill_preferred_configuration,
++    .init = init,
++    .deinit = deinit,
++    .reset = reset,
++    .get_read_block_size = get_read_block_size,
++    .get_write_block_size = get_write_block_size,
++    .reduce_encoder_bitrate = reduce_encoder_bitrate,
++    .encode_buffer = encode_buffer,
++    .decode_buffer = decode_buffer,
++};
+diff --git a/src/modules/bluetooth/a2dp-codec-util.c b/src/modules/bluetooth/a2dp-codec-util.c
+index 363fcc387..f207fbbb3 100644
+--- a/src/modules/bluetooth/a2dp-codec-util.c
++++ b/src/modules/bluetooth/a2dp-codec-util.c
+@@ -26,6 +26,7 @@
+ 
+ #include "a2dp-codec-util.h"
+ 
++extern const pa_a2dp_codec pa_a2dp_codec_faststream;
+ extern const pa_a2dp_codec pa_a2dp_codec_sbc;
+ #ifdef HAVE_OPENAPTX
+ extern const pa_a2dp_codec pa_a2dp_codec_aptx;
+@@ -35,6 +36,7 @@ extern const pa_a2dp_codec pa_a2dp_codec_aptx_hd;
+ /* This is list of supported codecs. Their order is important.
+  * Codec with higher index has higher priority. */
+ const pa_a2dp_codec *pa_a2dp_codecs[] = {
++    &pa_a2dp_codec_faststream,
+     &pa_a2dp_codec_sbc,
+ #ifdef HAVE_OPENAPTX
+     &pa_a2dp_codec_aptx,
+diff --git a/src/modules/bluetooth/meson.build b/src/modules/bluetooth/meson.build
+index 7b3de6bc3..783e4e14a 100644
+--- a/src/modules/bluetooth/meson.build
++++ b/src/modules/bluetooth/meson.build
+@@ -1,4 +1,5 @@
+ libbluez5_util_sources = [
++  'a2dp-codec-faststream.c',
+   'a2dp-codec-sbc.c',
+   'a2dp-codec-util.c',
+   'bluez5-util.c',
+-- 
+2.23.0
+

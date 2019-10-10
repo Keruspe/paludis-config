@@ -1,0 +1,100 @@
+From c24b63291b569a1ba70fb76578451460695ec8f8 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Pali=20Roh=C3=A1r?= <pali.rohar@gmail.com>
+Date: Fri, 3 May 2019 19:12:25 +0200
+Subject: [PATCH 03/10] bluetooth: Parse remote timestamp from A2DP RTP packets
+ when available
+
+Some A2DP codecs (e.g. SBC or aptX-HD) use RTP packets. For sources use
+timestamps from RTP packets to calculate read index and therefore remote
+timestamp for synchronization.
+---
+ src/modules/bluetooth/a2dp-codec-api.h       |  4 ++--
+ src/modules/bluetooth/a2dp-codec-sbc.c       |  3 ++-
+ src/modules/bluetooth/module-bluez5-device.c | 14 +++++++++++---
+ 3 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/modules/bluetooth/a2dp-codec-api.h b/src/modules/bluetooth/a2dp-codec-api.h
+index a3123f4ca..1fd8e81d0 100644
+--- a/src/modules/bluetooth/a2dp-codec-api.h
++++ b/src/modules/bluetooth/a2dp-codec-api.h
+@@ -91,8 +91,8 @@ typedef struct pa_a2dp_codec {
+     size_t (*encode_buffer)(void *codec_info, uint32_t timestamp, const uint8_t *input_buffer, size_t input_size, uint8_t *output_buffer, size_t output_size, size_t *processed);
+     /* Decode input_buffer of input_size to output_buffer of output_size,
+      * returns size of filled ouput_buffer and set processed to size of
+-     * processed input_buffer */
+-    size_t (*decode_buffer)(void *codec_info, const uint8_t *input_buffer, size_t input_size, uint8_t *output_buffer, size_t output_size, size_t *processed);
++     * processed input_buffer and set timestamp */
++    size_t (*decode_buffer)(void *codec_info, uint32_t *timestamp, const uint8_t *input_buffer, size_t input_size, uint8_t *output_buffer, size_t output_size, size_t *processed);
+ } pa_a2dp_codec;
+ 
+ #endif
+diff --git a/src/modules/bluetooth/a2dp-codec-sbc.c b/src/modules/bluetooth/a2dp-codec-sbc.c
+index 89c647fbe..733c1a9ab 100644
+--- a/src/modules/bluetooth/a2dp-codec-sbc.c
++++ b/src/modules/bluetooth/a2dp-codec-sbc.c
+@@ -597,7 +597,7 @@ static size_t encode_buffer(void *codec_info, uint32_t timestamp, const uint8_t
+     return d - output_buffer;
+ }
+ 
+-static size_t decode_buffer(void *codec_info, const uint8_t *input_buffer, size_t input_size, uint8_t *output_buffer, size_t output_size, size_t *processed) {
++static size_t decode_buffer(void *codec_info, uint32_t *timestamp, const uint8_t *input_buffer, size_t input_size, uint8_t *output_buffer, size_t output_size, size_t *processed) {
+     struct sbc_info *sbc_info = (struct sbc_info *) codec_info;
+ 
+     struct rtp_header *header;
+@@ -657,6 +657,7 @@ static size_t decode_buffer(void *codec_info, const uint8_t *input_buffer, size_
+         frame_count--;
+     }
+ 
++    *timestamp = ntohl(header->timestamp);
+     *processed = p - input_buffer;
+     return d - output_buffer;
+ }
+diff --git a/src/modules/bluetooth/module-bluez5-device.c b/src/modules/bluetooth/module-bluez5-device.c
+index 9da5d1ac3..fb77afaad 100644
+--- a/src/modules/bluetooth/module-bluez5-device.c
++++ b/src/modules/bluetooth/module-bluez5-device.c
+@@ -556,6 +556,7 @@ static int a2dp_process_push(struct userdata *u) {
+         struct msghdr m;
+         bool found_tstamp = false;
+         pa_usec_t tstamp;
++        uint32_t timestamp;
+         uint8_t *ptr;
+         ssize_t l;
+         size_t processed;
+@@ -591,8 +592,6 @@ static int a2dp_process_push(struct userdata *u) {
+ 
+         pa_assert((size_t) l <= u->decoder_buffer_size);
+ 
+-        /* TODO: get timestamp from rtp */
+-
+         for (cm = CMSG_FIRSTHDR(&m); cm; cm = CMSG_NXTHDR(&m, cm)) {
+             if (cm->cmsg_level == SOL_SOCKET && cm->cmsg_type == SO_TIMESTAMP) {
+                 struct timeval *tv = (struct timeval*) CMSG_DATA(cm);
+@@ -613,7 +612,8 @@ static int a2dp_process_push(struct userdata *u) {
+         ptr = pa_memblock_acquire(memchunk.memblock);
+         memchunk.length = pa_memblock_get_length(memchunk.memblock);
+ 
+-        memchunk.length = u->a2dp_codec->decode_buffer(u->decoder_info, u->decoder_buffer, l, ptr, memchunk.length, &processed);
++        timestamp = 0; /* Decoder does not have to fill RTP timestamp */
++        memchunk.length = u->a2dp_codec->decode_buffer(u->decoder_info, &timestamp, u->decoder_buffer, l, ptr, memchunk.length, &processed);
+ 
+         pa_memblock_release(memchunk.memblock);
+ 
+@@ -623,6 +623,14 @@ static int a2dp_process_push(struct userdata *u) {
+             break;
+         }
+ 
++        /* Some codecs may provide RTP timestamp, so use it to update read_index for calculation of remote tstamp */
++        if (timestamp) {
++            /* RTP timestamp is only 32bit and may overflow, avoid it by calculating high 32bits from the last read_index */
++            size_t frame_size = pa_frame_size(&u->decoder_sample_spec);
++            uint64_t timestamp_hi = (u->read_index / frame_size) & 0xFFFFFFFF00000000ULL;
++            u->read_index = (timestamp_hi | timestamp) * frame_size;
++        }
++
+         u->read_index += (uint64_t) memchunk.length;
+         pa_smoother_put(u->read_smoother, tstamp, pa_bytes_to_usec(u->read_index, &u->decoder_sample_spec));
+         pa_smoother_resume(u->read_smoother, tstamp, true);
+-- 
+2.23.0
+
