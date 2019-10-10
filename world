@@ -10,12 +10,15 @@ app-pda/ifuse
 app-pda/usbmuxd
 app-text/editorconfig
 app-text/wgetpaste
+app-vim/airline
 app-vim/exheres-syntax
+app-vim/gtk-syntax
+app-vim/LanguageClient
+app-vim/securemodelines
 dev-db/postgresql-client
 dev-java/maven
 dev-lang/rust
 dev-libs/compiler-rt
-dev-node/yarn
 dev-ruby/bundler
 dev-rust/brainfuck_rs
 dev-rust/cargo-audit
@@ -26,6 +29,7 @@ dev-rust/cargo-tree
 dev-rust/cargo-watch
 dev-rust/pijul
 dev-rust/ripgrep
+dev-rust/rust-analyzer
 dev-scala/sbt
 dev-util/clever-tools-bin
 dev-util/exherbo-dev-tools
@@ -33,10 +37,10 @@ dev-util/lcov
 dev-util/meld
 dev-util/strace
 dev-util/valgrind
+firmware/intel-microcode
 firmware/linux-firmware
 fonts/unifont
 gnome-desktop/baobab
-gnome-desktop/cheese
 gnome-desktop/dconf-editor
 gnome-desktop/eog
 gnome-desktop/evince
@@ -46,6 +50,7 @@ gnome-desktop/gnome-calculator
 gnome-desktop/gnome-calendar
 gnome-desktop/gnome-clocks
 gnome-desktop/gnome-control-center
+gnome-desktop/gnome-firmware
 gnome-desktop/gnome-screenshot
 gnome-desktop/gnome-tweaks
 gnome-desktop/gnome-usage
@@ -53,8 +58,10 @@ gnome-desktop/gnome-weather
 gnome-desktop/GPaste
 gnome-desktop/nautilus
 gnome-desktop/sysprof
-gnome-desktop/totem
 gnome-desktop/vinagre
+import/brother-DCP1510-cupswrapper
+import/brother-DCP1510-lpr
+import/brscan4
 inputmethods/mozc
 mail-client/evolution
 media-gfx/simple-scan
@@ -63,6 +70,7 @@ media-libs/libopenaptx
 media-plugins/gst-libav
 net-analyzer/tcpdump
 net-analyzer/wireshark
+net-apps/s3cmd
 net-dns/bind-tools
 net-misc/fping
 net-misc/iputils
@@ -88,6 +96,7 @@ sys-apps/keyutils
 sys-apps/man-pages-posix
 sys-apps/progress
 sys-apps/switcheroo-control
+sys-apps/topgrade
 sys-apps/usbutils
 sys-apps/xdg-desktop-portal
 sys-apps/xdg-desktop-portal-gtk
