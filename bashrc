@@ -12,6 +12,9 @@ base_LDFLAGS="-Wl,-O1 -Wl,--as-needed"
 # Failed to find symbol
 # - GPaste
 
+# undefined symbol
+# - libnftnl
+
 # Uses ld with no objects + segv in g_thread when built with clang
 # - glib
 
@@ -20,6 +23,31 @@ base_LDFLAGS="-Wl,-O1 -Wl,--as-needed"
 
 # Missing support for -Wl,--gc-sections
 # - NetworkManager
+
+# Unknown directive in asm
+# - kexec-tools
+
+# Exported symbols missing
+# - spidermonkey
+
+# error: statement not allowed in constexpr constructor
+# - polkit
+
+# Uses gcc extensions
+# - libgcrypt
+# - elfutils
+
+# efivar.h not found?
+# - efibootmgr
+
+# sizeof(char) == 0
+# - libatomic
+
+case "${CATEGORY}/${PN}" in
+    "dev-lang/llvm")
+        base_CFLAGS+=" --stdlib=libc++"
+        ;;
+esac
 
 case "${CATEGORY}/${PN}" in
     "gnome-desktop/GPaste"|"net-www/firefox")
@@ -40,8 +68,44 @@ case "${CATEGORY}/${PN}" in
 esac
 
 case "${CATEGORY}/${PN}" in
-    "media-libs/v4l-utils"|"net-apps/NetworkManager")
+    "dev-libs/spidermonkey"|"sys-auth/polkit")
+        PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:/etc/env.d/alternatives/c++/gcc/usr/${CHOST}/bin:${PATH}"
+        ;;
+esac
+
+case "${CATEGORY}/${PN}" in
+    "dev-libs/libgcrypt"|"dev-util/elfutils"|"media-libs/v4l-utils"|"net-apps/NetworkManager"|"sys-apps/kexec-tools"|"sys-boot/efibootmgr"|"sys-libs/libatomic")
         PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:${PATH}"
+        ;;
+esac
+
+case "${CATEGORY}/${PN}" in
+    "media-libs/v4l-utils")
+        base_LDFLAGS+=" -lpthread"
+        ;;
+esac
+
+case "${CATEGORY}/${PN}" in
+    "app-arch/cpio"|"sys-devel/m4")
+        base_CFLAGS+=" --rtlib=compiler-rt"
+        ;;
+esac
+
+case "${CATEGORY}/${PN}" in
+    "dev-util/valgrind")
+        base_CFLAGS+=" -fgnuc-version=6.1.0"
+        ;;
+esac
+
+case "${CATEGORY}/${PN}" in
+    "gnome-desktop/gnome-builder")
+        base_CFLAGS+=" -Wno-shadow"
+        ;;
+esac
+
+case "${CATEGORY}/${PN}" in
+    "gnome-desktop/evince")
+        base_CFLAGS+=" -Wno-format-nonliteral"
         ;;
 esac
 
