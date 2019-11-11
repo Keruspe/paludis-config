@@ -55,16 +55,6 @@ case "${CATEGORY}/${PN}" in
         ;;
 esac
 
-# libxml2 fails to cross compile because of some relocation of a glibc symbols
-if [[ "${PALUDIS_CROSS_COMPILE_HOST}" == "i686-pc-linux-gnu" ]]; then
-    case "${CATEGORY}/${PN}" in
-        "dev-libs/libxml2")
-            base_CFLAGS+=" -fPIE -fPIC -mpie-copy-relocations"
-            base_LDFLAGS+=" -pie"
-            ;;
-    esac
-fi
-
 x86_64_pc_linux_gnu_CFLAGS="${base_CFLAGS}"
 x86_64_pc_linux_gnu_CXXFLAGS="${base_CFLAGS} ${CUSTOM_CXXFLAGS}"
 x86_64_pc_linux_gnu_LDFLAGS="${base_LDFLAGS}"
