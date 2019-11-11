@@ -5,8 +5,7 @@ base_LDFLAGS="-Wl,-O1 -Wl,--as-needed"
 
 CUSTOM_CXXFLAGS=""
 
-# glibc requires manual "eclectic ld set gold"
-# libxml2 fails to cross compile because of some relocation of a glibc symbols
+# glibc requires manual "eclectic ld set bfd"
 # SDL is stupid and requires libunwind pkg-config files when libunwind.h is present
 
 # glib:           SEGV in g_thread when using e.g. appstream-glib
@@ -56,14 +55,12 @@ case "${CATEGORY}/${PN}" in
         ;;
 esac
 
+# libxml2 fails to cross compile because of some relocation of a glibc symbols
 if [[ "${PALUDIS_CROSS_COMPILE_HOST}" == "i686-pc-linux-gnu" ]]; then
     case "${CATEGORY}/${PN}" in
-        "sys-libs/glibc")
-#            base_CFLAGS+=" -fPIE -pie -fPIC"
-            ;;
         "dev-libs/libxml2")
-#            PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:${PATH}"
-#            base_CFLAGS+=" -fuse-ld=gold --rtlib=libgcc"
+            base_CFLAGS+=" -fPIE -fPIC -mpie-copy-relocations"
+            base_LDFLAGS+=" -pie"
             ;;
     esac
 fi
