@@ -3,6 +3,8 @@ CHOST="x86_64-pc-linux-gnu"
 base_CFLAGS="-march=native -pipe -O2"
 base_LDFLAGS="-Wl,-O1 -Wl,--as-needed"
 
+# Required until everything uses clang/lld
+LTO_FLAGS="-flto=thin"
 CUSTOM_CXXFLAGS=""
 
 # glibc requires manual "eclectic ld set bfd"
@@ -22,9 +24,11 @@ CUSTOM_CXXFLAGS=""
 case "${CATEGORY}/${PN}" in
     "dev-libs/glib")
         PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:/etc/env.d/alternatives/ld/gold/usr/${CHOST}/bin:${PATH}"
+        LTO_FLAGS=""
         ;;
     "dev-libs/spidermonkey"|"sys-auth/polkit")
         PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:/etc/env.d/alternatives/c++/gcc/usr/${CHOST}/bin:${PATH}"
+        LTO_FLAGS=""
         ;;
     "net-www/firefox")
         CUSTOM_CXXFLAGS="--stdlib=libstdc++"
@@ -34,12 +38,16 @@ case "${CATEGORY}/${PN}" in
         ;;
     "dev-util/elfutils"|"media-libs/v4l-utils"|"net-apps/NetworkManager"|"sys-apps/kexec-tools"|"sys-boot/efibootmgr"|"sys-libs/libatomic")
         PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:${PATH}"
+        LTO_FLAGS=""
         ;;
     "gnome-desktop/gnome-builder")
         base_CFLAGS+=" -Wno-shadow"
         ;;
     "gnome-desktop/evince")
         base_CFLAGS+=" -Wno-format-nonliteral"
+        ;;
+    "sys-libs/glibc")
+        LTO_FLAGS=""
         ;;
 esac
 
@@ -54,6 +62,9 @@ case "${CATEGORY}/${PN}" in
         base_LDFLAGS+=" -nodefaultlibs -lc++ -lc++abi -lm -lc"
         ;;
 esac
+
+base_CFLAGS+=" ${LTO_FLAGS}"
+base_LDFLAGS+=" ${LTO_FLAGS}"
 
 x86_64_pc_linux_gnu_CFLAGS="${base_CFLAGS}"
 x86_64_pc_linux_gnu_CXXFLAGS="${base_CFLAGS} ${CUSTOM_CXXFLAGS}"
