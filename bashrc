@@ -82,7 +82,7 @@ esac
 
 # LTO problems
 case "${CATEGORY}/${PN}" in
-    "dev-lang/perl"|"dev-lang/python"|"dev-libs/glib"|"dev-libs/libgcrypt"|"dev-libs/libglvnd"|"dev-util/elfutils"|"dev-util/strace"|"dev-util/valgrind"|"media-libx/x264"|"net-print/cups"|"sys-apps/fwupd"|"sys-devel/gcc"|"sys-devel/libostree"|"sys-libs/libgcc"|"x11-dri/mesa"|"x11-libs/pango")
+    "dev-lang/perl"|"dev-lang/python"|"dev-libs/glib"|"dev-libs/libgcrypt"|"dev-libs/libglvnd"|"dev-util/elfutils"|"dev-util/strace"|"dev-util/valgrind"|"media-libx/x264"|"net-print/cups"|"sys-apps/fwupd"|"sys-devel/gcc"|"sys-devel/libostree"|"sys-libs/glibc"|"sys-libs/libgcc"|"x11-dri/mesa"|"x11-libs/pango")
         # fwupd:  fails at runtime to load modules
         # others: configure or build failure
         ;;
