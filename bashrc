@@ -48,7 +48,7 @@ case "${CATEGORY}/${PN}" in
         ;;
     "gnome-desktop/GPaste")
         # need to debug that
-        base_CFLAGS+=" -fuse-ld=gold --rtlib=libgcc"
+        base_CFLAGS+=" -fuse-ld=gold"
         ;;
     "sys-apps/systemd")
         # otherwise sd-boot displays and does nothing
@@ -71,8 +71,13 @@ case "${CATEGORY}/${PN}" in
         # others: configure or build failure
         ;;
     *)
-        base_CFLAGS+=" -flto=thin"
-        base_LDFLAGS+=" -flto=thin"
+        if [[ -z "${PALUDIS_CROSS_COMPILE_HOST}" ]]; then
+            base_CFLAGS+=" -flto=thin"
+            base_LDFLAGS+=" -flto=thin"
+        elif [[ "${CATEGORY}/${PN}" != "dev-libs/icu" ]]; then
+            base_CFLAGS+=" -flto=thin"
+            base_LDFLAGS+=" -flto=thin"
+        fi
         ;;
 esac
 
