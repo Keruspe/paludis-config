@@ -4,20 +4,24 @@ base_CFLAGS="-march=native -pipe -O3"
 base_LDFLAGS="-Wl,-O2,--as-needed"
 
 # GCC-compat
-GNUC_VERSION=""
+GNUC_VERSION="6.5.0" # gcc 7 introduced _Float stuff
+SKIP_POLLY=""
 case "${CATEGORY}/${PN}" in
     "dev-libs/glib")
         # SEGV in g_thread when using e.g. appstream-glib => force gcc
         PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:/etc/env.d/alternatives/ld/gold/usr/${CHOST}/bin:${PATH}"
+        GNUC_VERSION=""
         ;;
     "dev-util/elfutils"|"sys-apps/kexec-tools"|"sys-libs/libatomic")
         # elfutils:    error: gcc with GNU99 support required
         # kexec-tools: error: unknown directive
         # libatomic:   error: no 8-bit type, please report a bug
         PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:${PATH}"
+        GNUC_VERSION=""
         ;;
     "sys-boot/gnu-efi"|"sys-devel/gcc"|"sys-libs/glibc"|"sys-libs/libgcc"|"sys-libs/libstdc++")
         # build system forces gcc
+        GNUC_VERSION=""
         ;;
     "app-arch/gzip"|"app-arch/tar"|"app-editors/vim"|"app-editors/vim-runtime"|"app-spell/enchant"|"base/libatasmart"|"dev-lang/erlang"|"dev-lang/ruby"|"dev-libs/gtk-vnc"|"dev-libs/libsodium"|"dev-libs/popt"|"dev-libs/spidermonkey"|"gnome-desktop/GPaste"|"media-libs/libcanberra"|"media-libs/opus"|"media-sound/pulseaudio"|"net-misc/openssh"|"net-print/cups"|"net-scanner/nmap"|"net-www/firefox"|"sys-apps/accountsservice"|"sys-apps/coreutils"|"sys-apps/kbd"|"sys-apps/sed"|"sys-boot/dracut"|"sys-devel/gdb"|"sys-devel/m4"|"x11-libs/cairo")
         # erlang: configure fails
@@ -29,14 +33,13 @@ case "${CATEGORY}/${PN}" in
         # error: static_assert expression is not an integral constant expression
         GNUC_VERSION="4.5.4"
         ;;
-    *)
-        # gcc 7 introduced _Float stuff
-        GNUC_VERSION="6.5.0"
+    "place/holder")
+        SKIP_POLLY="yes"
         ;;
 esac
 if [[ -n "${GNUC_VERSION}" ]]; then
     base_CFLAGS+=" -fgnuc-version=${GNUC_VERSION}"
-    # base_CFLAGS+=" -mllvm -mpolly"
+    [[ -n "${SKIP_POLLY}" ]] || base_CFLAGS+=" -mllvm -polly"
 fi
 
 # Custom {C,LD}FLAGS or linker
@@ -50,10 +53,6 @@ case "${CATEGORY}/${PN}" in
         ;;
     "gnome-desktop/gnome-builder")
         base_CFLAGS+=" -Wno-shadow"
-        ;;
-    "gnome-desktop/GPaste")
-        # need to debug that
-        base_CFLAGS+=" -fuse-ld=gold"
         ;;
     "sys-apps/systemd")
         # otherwise sd-boot displays and does nothing
