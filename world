@@ -105,6 +105,7 @@ sys-boot/dracut
 sys-boot/efibootmgr
 sys-devel/gdb
 sys-devel/lld
+sys-devel/lldb
 sys-fs/cryptsetup
 sys-fs/dosfstools
 sys-fs/squashfs-tools

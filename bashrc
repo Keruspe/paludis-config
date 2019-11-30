@@ -1,9 +1,10 @@
 CHOST="x86_64-pc-linux-gnu"
 
-base_CFLAGS="-march=native -pipe -O2"
+base_CFLAGS="-march=native -pipe -O3"
 base_LDFLAGS="-Wl,-O2,--as-needed"
 
-# GCC-compat version
+# GCC-compat
+GNUC_VERSION=""
 case "${CATEGORY}/${PN}" in
     "dev-libs/glib")
         # SEGV in g_thread when using e.g. appstream-glib => force gcc
@@ -22,23 +23,27 @@ case "${CATEGORY}/${PN}" in
         # erlang: configure fails
         # gcc:    random build failure
         # others: error: undefined symbol: __builtin_va_arg_pack  (introduced in gcc 4.3)
-        base_CFLAGS+=" -fgnuc-version=4.2.4"
+        GNUC_VERSION="4.2.4"
         ;;
     "sys-apps/systemd")
         # error: static_assert expression is not an integral constant expression
-        base_CFLAGS+=" -fgnuc-version=4.5.4"
+        GNUC_VERSION="4.5.4"
         ;;
     *)
         # gcc 7 introduced _Float stuff
-        base_CFLAGS+=" -fgnuc-version=6.5.0"
+        GNUC_VERSION="6.5.0"
         ;;
 esac
+if [[ -n "${GNUC_VERSION}" ]]; then
+    base_CFLAGS+=" -fgnuc-version=${GNUC_VERSION}"
+    # base_CFLAGS+=" -mllvm -mpolly"
+fi
 
 # Custom {C,LD}FLAGS or linker
 case "${CATEGORY}/${PN}" in
     "dev-util/elfutils")
         # links to libstdc++ otherwise
-        base_LDFLAGS+=" -nodefaultlibs -lc++ -lc++abi -lm -lc"
+        base_LDFLAGS+=" -nodefaultlibs -lc++ -lc++abi -lm -lc -lpthread"
         ;;
     "gnome-desktop/evince")
         base_CFLAGS+=" -Wno-format-nonliteral"
@@ -66,17 +71,16 @@ esac
 
 # LTO handling
 case "${CATEGORY}/${PN}" in
-    "dev-lang/perl"|"dev-lang/python"|"dev-libs/glib"|"dev-libs/libgcrypt"|"dev-libs/libglvnd"|"dev-util/elfutils"|"dev-util/strace"|"dev-util/valgrind"|"media-libx/x264"|"net-print/cups"|"sys-apps/fwupd"|"sys-devel/gcc"|"sys-devel/libostree"|"sys-libs/glibc"|"sys-libs/libgcc"|"x11-dri/mesa"|"x11-libs/pango")
+    "dev-lang/erlang"|"dev-lang/perl"|"dev-lang/python"|"dev-libs/glib"|"dev-libs/libgcrypt"|"dev-libs/libglvnd"|"dev-util/elfutils"|"dev-util/strace"|"dev-util/valgrind"|"media-libs/x264"|"net-print/cups"|"sys-apps/fwupd"|"sys-devel/gcc"|"sys-devel/libostree"|"sys-libs/glibc"|"sys-libs/libgcc"|"x11-dri/mesa"|"x11-libs/pango")
+        # erlang: fails at runtime (build elixir, rabbitmq)
         # fwupd:  fails at runtime to load modules
         # others: configure or build failure
         ;;
     *)
         if [[ -z "${PALUDIS_CROSS_COMPILE_HOST}" ]]; then
             base_CFLAGS+=" -flto=thin"
-            base_LDFLAGS+=" -flto=thin"
         elif [[ "${CATEGORY}/${PN}" != "dev-libs/icu" ]]; then
             base_CFLAGS+=" -flto=thin"
-            base_LDFLAGS+=" -flto=thin"
         fi
         ;;
 esac
