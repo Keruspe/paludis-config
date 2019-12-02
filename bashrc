@@ -11,12 +11,7 @@ case "${CATEGORY}/${PN}" in
         PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:/etc/env.d/alternatives/ld/gold/usr/${CHOST}/bin:${PATH}"
         GNUC_VERSION=""
         ;;
-    "sys-apps/kexec-tools")
-        # kexec-tools: error: unknown directive
-        PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:${PATH}"
-        GNUC_VERSION=""
-        ;;
-    "dev-util/elfutils"|"sys-boot/gnu-efi"|"sys-devel/gcc"|"sys-libs/glibc"|"sys-libs/libatomic"|"sys-libs/libgcc"|"sys-libs/libstdc++")
+    "dev-util/elfutils"|"sys-devel/gcc"|"sys-libs/glibc"|"sys-libs/libatomic"|"sys-libs/libgcc"|"sys-libs/libstdc++")
         # build system forces gcc
         GNUC_VERSION=""
         ;;
@@ -89,7 +84,7 @@ base_CXXFLAGS="${base_CFLAGS}"
 # Custom CXXFLAGS
 case "${CATEGORY}/${PN}" in
     "sys-auth/polkit")
-        base_CXXFLAGS+=" -std=c++17"
+        base_CXXFLAGS+=" -std=c++14"
         ;;
 esac
 
