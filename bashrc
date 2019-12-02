@@ -5,21 +5,18 @@ base_LDFLAGS="-Wl,-O2,--as-needed"
 
 # GCC-compat
 GNUC_VERSION="6.5.0" # gcc 7 introduced _Float stuff
-SKIP_POLLY=""
 case "${CATEGORY}/${PN}" in
     "dev-libs/glib")
         # SEGV in g_thread when using e.g. appstream-glib => force gcc
         PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:/etc/env.d/alternatives/ld/gold/usr/${CHOST}/bin:${PATH}"
         GNUC_VERSION=""
         ;;
-    "dev-util/elfutils"|"sys-apps/kexec-tools"|"sys-libs/libatomic")
-        # elfutils:    error: gcc with GNU99 support required
+    "sys-apps/kexec-tools")
         # kexec-tools: error: unknown directive
-        # libatomic:   error: no 8-bit type, please report a bug
         PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:${PATH}"
         GNUC_VERSION=""
         ;;
-    "sys-boot/gnu-efi"|"sys-devel/gcc"|"sys-libs/glibc"|"sys-libs/libgcc"|"sys-libs/libstdc++")
+    "dev-util/elfutils"|"sys-boot/gnu-efi"|"sys-devel/gcc"|"sys-libs/glibc"|"sys-libs/libatomic"|"sys-libs/libgcc"|"sys-libs/libstdc++")
         # build system forces gcc
         GNUC_VERSION=""
         ;;
@@ -33,21 +30,24 @@ case "${CATEGORY}/${PN}" in
         # error: static_assert expression is not an integral constant expression
         GNUC_VERSION="4.5.4"
         ;;
-    "place/holder")
-        SKIP_POLLY="yes"
-        ;;
 esac
 if [[ -n "${GNUC_VERSION}" ]]; then
     base_CFLAGS+=" -fgnuc-version=${GNUC_VERSION}"
-    [[ -n "${SKIP_POLLY}" ]] || base_CFLAGS+=" -mllvm -polly"
+
+    # Polly handling (clang-specific)
+    case "${CATEGORY}/${PN}" in
+        # libssh: configure fails to detect __func__
+        # cmake:  configure fails silently
+        "net-libs/libssh"|"sys-devel/cmake")
+            ;;
+        *)
+            base_CFLAGS+=" -mllvm -polly"
+            ;;
+    esac
 fi
 
 # Custom {C,LD}FLAGS or linker
 case "${CATEGORY}/${PN}" in
-    "dev-util/elfutils")
-        # links to libstdc++ otherwise
-        base_LDFLAGS+=" -nodefaultlibs -lc++ -lc++abi -lm -lc -lpthread"
-        ;;
     "gnome-desktop/evince")
         base_CFLAGS+=" -Wno-format-nonliteral"
         ;;
@@ -88,13 +88,6 @@ base_CXXFLAGS="${base_CFLAGS}"
 
 # Custom CXXFLAGS
 case "${CATEGORY}/${PN}" in
-    "dev-util/elfutils")
-        base_CXXFLAGS+=" -nostdinc++ -I/usr/include/c++/v1"
-        ;;
-    "net-www/firefox")
-        # error: no member named 'abort' in namespace 'std::__1'; did you mean simply 'abort'?
-        base_CXXFLAGS+=" --stdlib=libstdc++"
-        ;;
     "sys-auth/polkit")
         base_CXXFLAGS+=" -std=c++17"
         ;;
