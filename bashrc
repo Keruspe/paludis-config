@@ -6,11 +6,6 @@ base_LDFLAGS="-Wl,-O2,--as-needed"
 # GCC-compat
 GNUC_VERSION="6.5.0" # gcc 7 introduced _Float stuff
 case "${CATEGORY}/${PN}" in
-    "dev-libs/glib")
-        # SEGV in g_thread when using e.g. appstream-glib => force gcc
-        PATH="/usr/share/exherbo/banned_by_distribution:/etc/env.d/alternatives/cc/gcc/usr/${CHOST}/bin:/etc/env.d/alternatives/ld/gold/usr/${CHOST}/bin:${PATH}"
-        GNUC_VERSION=""
-        ;;
     "dev-util/elfutils"|"sys-devel/gcc"|"sys-libs/glibc"|"sys-libs/libatomic"|"sys-libs/libgcc"|"sys-libs/libstdc++")
         # build system forces gcc
         GNUC_VERSION=""
@@ -43,6 +38,9 @@ fi
 
 # Custom {C,LD}FLAGS or linker
 case "${CATEGORY}/${PN}" in
+    "dev-libs/glib")
+        LD="${LD} -m elf_x86_64"
+        ;;
     "gnome-desktop/evince")
         base_CFLAGS+=" -Wno-format-nonliteral"
         ;;
