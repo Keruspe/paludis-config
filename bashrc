@@ -38,9 +38,6 @@ fi
 
 # Custom {C,LD}FLAGS or linker
 case "${CATEGORY}/${PN}" in
-    "dev-libs/glib")
-        LD="${LD} -m elf_x86_64"
-        ;;
     "gnome-desktop/evince")
         base_CFLAGS+=" -Wno-format-nonliteral"
         ;;
