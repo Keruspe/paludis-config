@@ -65,10 +65,11 @@ esac
 
 # LTO handling
 case "${CATEGORY}/${PN}" in
-    "dev-lang/erlang"|"dev-lang/perl"|"dev-lang/python"|"dev-libs/glib"|"dev-libs/libgcrypt"|"dev-libs/libglvnd"|"dev-util/elfutils"|"dev-util/strace"|"dev-util/valgrind"|"media-libs/x264"|"net-print/cups"|"sys-apps/fwupd"|"sys-devel/gcc"|"sys-devel/libostree"|"sys-libs/glibc"|"sys-libs/libgcc"|"x11-dri/mesa"|"x11-libs/pango")
-        # erlang: fails at runtime (build elixir, rabbitmq)
-        # fwupd:  fails at runtime to load modules
-        # others: configure or build failure
+    "dev-lang/erlang"|"dev-lang/perl"|"dev-lang/python"|"dev-libs/glib"|"dev-libs/libgcrypt"|"dev-libs/libglvnd"|"dev-util/elfutils"|"dev-util/strace"|"dev-util/valgrind"|"media-libs/x264"|"net-print/cups"|"sys-apps/fwupd"|"sys-boot/gnu-efi"|"sys-devel/gcc"|"sys-devel/libostree"|"sys-libs/glibc"|"sys-libs/libgcc"|"x11-dri/mesa"|"x11-libs/pango")
+        # erlang:  fails at runtime (build elixir, rabbitmq)
+        # fwupd:   fails at runtime to load modules
+        # gnu-efi: fails at runtime
+        # others:  configure or build failure
         ;;
     *)
         if [[ -z "${PALUDIS_CROSS_COMPILE_HOST}" ]]; then
