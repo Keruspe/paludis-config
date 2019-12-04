@@ -44,7 +44,7 @@ case "${CATEGORY}/${PN}" in
     "gnome-desktop/gnome-builder")
         base_CFLAGS+=" -Wno-shadow"
         ;;
-    "sys-apps/systemd")
+    "sys-apps/fwupd"|"sys-apps/systemd")
         # otherwise sd-boot displays and does nothing
         EFI_LD="${CHOST}-ld.gold"
         ;;
