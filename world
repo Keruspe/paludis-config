@@ -101,6 +101,7 @@ sys-apps/usbutils
 sys-apps/uutils
 sys-apps/xdg-desktop-portal
 sys-apps/xdg-desktop-portal-gtk
+sys-auth/fprintd
 sys-auth/google-authenticator
 sys-boot/dracut
 sys-boot/efibootmgr

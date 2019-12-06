@@ -1,0 +1,3076 @@
+diff --git a/AUTHORS b/AUTHORS
+index 2b9f267..9888082 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -9,3 +9,5 @@ Copyright (C) 2007 Jan-Michael Brummer <buzz2@gmx.de>
+ Copyright (C) 2007 Anthony Bretaudeau <wxcover@users.sourceforge.net>
+ Copyright (C) 2010 Hugo Grostabussiat <dw23.devel@gmail.com>
+ Copyright (C) 2012 Timo Teräs <timo.teras@iki.fi>
++Copyright (C) 2017 Nikita Mikhailov <nikita.s.mikhailov@gmail.com>
++Copyright (C) 2018 Marco Trevisan <marco@ubuntu.com>
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..35687e2
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,71 @@
++## Validity Sensor `138a:0090` libfprint driver
++#### A linux driver for 2016 ThinkPad's fingerprint readers
++
++[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/dYe8eKaoUSE/0.jpg)](https://www.youtube.com/watch?v=dYe8eKaoUSE)`
++
++Thanks to the amazing work that [nmikhailov](https://github.com/nmikhailov) did in his [prototype](https://github.com/nmikhailov/Validity90/), I spent some time in getting a libfprint driver for the `138a:0090` device up...
++
++ * It only works if the device has been initialized with a Windows VirtualBox (sharing USB) guest or with a Windows installation in bare metal
++ * Most of the device interaction and crypto code is coming from the prototype, so basically it needs lots of cleanup, but I noticed Nikita is already on that, so I'll be happy to integrate it in next iterations (the thing that actually took the most was having proper fprintd state machines).
++ * Here enroll, verification, led and all the operations work
++ * First initialization is the most problematic thing so far, we're still looking on it.
++ * It uses libfprint image comparison algorithm, we might move to in-device check later.
++
++You can test it using `fprint-demo` available in various distro's repositories, or just using `fprintd-*` tools (GNOME supports it natively from control center).
++
++
++#### Ubuntu installation
++
++If you're using ubuntu just use [this PPA](https://launchpad.net/~3v1n0/+archive/ubuntu/libfprint-vfs0090) to get the libfprint packages with vfs0090 sensor support.
++
++
++Once you've added the ppa you can test it with the `fprint_demo` application (`fprint-demo` package) or use it for your desktop by installing the `libpam-fprintd`package.
++
++You can enroll your fingers by using the `fprintd-enroll` utility or from UI using `unity-control-center user-accounts` in unity or `gnome-control-center user-accounts` in GNOME (it's the same as going in System settings -> User accounts pane and enable the fingerprint login).
++
++So, in steps (for ubuntu) it would be:
++ - `sudo add-apt-repository -u ppa:3v1n0/libfprint-vfs0090`
++ - `sudo apt install libpam-fprintd`
++ - Go in system settings (account) and enable the fingerprint login
++
++#### Arch linux Installation
++
++Install packages:
++ * `fprintd`
++ * `libfprint-vfs0090-git` from AUR
++
++#### Fedora (tested on 28)
++- `sudo dnf install -y libusb*-devel libtool nss nss-devel gtk3-devel glib2-devel openssl openssl-devel libXv-devel gcc-c++`
++- `git clone https://github.com/3v1n0/libfprint`
++- `cd fprint && ./autogen.sh && make && sudo make install`
++
++#### Other distros
++ - `git clone https://github.com/3v1n0/libfprint`
++ - `cd fprint && ./autogen.sh && make && sudo make install`
++
++
++#### fprintd enrolling
++```bash
++for finger in {left,right}-{thumb,{index,middle,ring,little}-finger}; do fprintd-enroll -f "$finger" "$USER"; done
++```
++
++#### Help testing
++
++It would be nice if you could help in tuning the value of the `bz3_threshold`, as that's the value that defines how different should be the prints, and so it's important for having better security. I've set it to `12` currently, but of course increasing the number of prints we enroll or the image quality that could be increased.
++
++Using `fprint_demo` or monitor fprintd from journalctl you should be able to see the values such as `fpi_img_detect_minutiae` and `fpi_img_compare_print_data` in the log, like
++
++```
++fp:debug [fpi_img_new] length=82944
++fp:debug [fpi_imgdev_image_captured]
++fp:debug [fpi_img_detect_minutiae] minutiae scan completed in 0,080257 secs
++fp:debug [fpi_img_detect_minutiae] detected 18 minutiae
++fp:debug [print_data_new] driver=15 devtype=0000
++fp:debug [fpi_img_compare_print_data] score 9
++fp:debug [fpi_img_compare_print_data] score 12
++fp:debug [fpi_img_compare_print_data] score 18
++fp:debug [fpi_img_compare_print_data] score 10
++fp:debug [fpi_img_compare_print_data] score 12
++```
++
++The score is the value the print got for you, compared to each sample that fprint saves... And to match it needs to reach the said threshold (so 12 for now). For my fingers this value seems secure enough, but.... Let's see if we can increase it.
+diff --git a/libfprint/drivers/driver_ids.h b/libfprint/drivers/driver_ids.h
+index 012a3d0..6ca6412 100644
+--- a/libfprint/drivers/driver_ids.h
++++ b/libfprint/drivers/driver_ids.h
+@@ -41,7 +41,8 @@ enum {
+ 	ETES603_ID	= 18,
+ 	VFS5011_ID	= 19,
+ 	VFS0050_ID	= 20,
+-	ELAN_ID		= 21,
++	VFS0090_ID	= 21,
++	ELAN_ID		= 22,
+ };
+ 
+ #endif
+diff --git a/libfprint/drivers/vfs0090.c b/libfprint/drivers/vfs0090.c
+new file mode 100644
+index 0000000..adbe92b
+--- /dev/null
++++ b/libfprint/drivers/vfs0090.c
+@@ -0,0 +1,2093 @@
++/*
++ * Validity VFS0090 driver for libfprint
++ * Copyright (C) 2017 Nikita Mikhailov <nikita.s.mikhailov@gmail.com>
++ * Copyright (C) 2018 Marco Trevisan <marco@ubuntu.com>
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#define FP_COMPONENT "vfs0090"
++
++#include "drivers_api.h"
++#include <fp_internal.h>
++
++#include <errno.h>
++#include <nss.h>
++#include <pk11pub.h>
++#include <sechash.h>
++#include <openssl/err.h>
++#include <openssl/ec.h>
++#include <openssl/evp.h>
++#include <openssl/ssl.h>
++#include <stdio.h>
++#include <string.h>
++
++#include "driver_ids.h"
++
++#include "vfs0090.h"
++
++#define STRINGIZE(s) #s
++
++#define EP_IN (1 | LIBUSB_ENDPOINT_IN)
++#define EP_OUT (1 | LIBUSB_ENDPOINT_OUT)
++#define EP_INTERRUPT (LIBUSB_TRANSFER_TYPE_INTERRUPT | LIBUSB_ENDPOINT_IN)
++#define VFS_DEV_FROM_DEV(dev) ((struct vfs_dev_t *) FP_INSTANCE_DATA(dev))
++#define VFS_DEV_FROM_IMG(img) (VFS_DEV_FROM_DEV(FP_DEV(img)))
++
++/* The main driver structure */
++struct vfs_dev_t {
++	/* Buffer for saving usb data through states */
++	unsigned char *buffer;
++	unsigned int buffer_length;
++
++	/* TLS keyblock for current session */
++	unsigned char key_block[0x120];
++
++	/* Current async transfer */
++	struct libusb_transfer *transfer;
++
++	struct fpi_timeout *timeout;
++};
++
++struct vfs_init_t {
++	unsigned char *main_seed;
++	unsigned int main_seed_length;
++	unsigned char pubkey[VFS_PUBLIC_KEY_SIZE];
++	unsigned char ecdsa_private_key[VFS_ECDSA_PRIVATE_KEY_SIZE];
++	unsigned char masterkey_aes[VFS_MASTER_KEY_SIZE];
++	unsigned char tls_certificate[G_N_ELEMENTS(TLS_CERTIFICATE_BASE)];
++};
++
++/* DEBUGGG */
++#include <stdio.h>
++
++void print_hex_gn(unsigned char *data, int len, int sz) {
++	if (!len || !data)
++		return;
++
++	for (int i = 0; i < len; i++) {
++		if ((i % 16) == 0) {
++			if (i != 0) {
++				printf(" | ");
++				for (int j = i-16; j < i; ++j)
++					printf("%c", isprint(data[j * sz]) ? data[j * sz] : '.');
++				printf("\n");
++			}
++			printf("%04x ", i);
++		} else if ((i % 8) == 0) {
++			printf(" ");
++		}
++		printf("%02x ", data[i * sz]);
++	}
++
++	if (((len-1) % 16) != 0) {
++		int j;
++		int missing_bytes = (15 - (len-1) % 16);
++		int missing_spaces = missing_bytes * 3 + (missing_bytes >= 8 ? 1 : 0);
++
++		for (int i = 0; i < missing_spaces; ++i)
++			printf(" ");
++
++		printf(" | ");
++
++		for (j = len-1; j > 0 && (j % 16) != 0; --j);
++		for (; j < len; ++j)
++			printf("%c", isprint(data[j * sz]) ? data[j * sz] : '.');
++	}
++	puts("");
++}
++
++void print_hex_string(char *data, int len) {
++	for (int i = 0; i < len; i++) {
++		printf("%02x", data[i]);
++	}
++	puts("");
++}
++
++void print_hex(unsigned char *data, int len) {
++	print_hex_gn(data, len, 1);
++}
++
++/* remove emmmeeme */
++static void start_reactivate_subsm(struct fp_img_dev *idev, struct fpi_ssm *parent_ssm);
++
++static unsigned char *tls_encrypt(struct fp_img_dev *idev,
++				  const unsigned char *data, int data_size,
++				  int *encrypted_len_out);
++static gboolean tls_decrypt(struct fp_img_dev *idev,
++			    const unsigned char *buffer, int buffer_size,
++			    unsigned char *output_buffer, int *output_len);
++
++typedef void (*async_operation_cb)(struct fp_img_dev *idev, int status, void *data);
++
++struct async_usb_operation_data_t {
++	struct fp_img_dev *idev;
++	async_operation_cb callback;
++	void *callback_data;
++
++	gboolean completed;
++};
++
++static int usb_error_to_fprint_fail(struct fp_img_dev *idev, int status)
++{
++	if (status == LIBUSB_TRANSFER_CANCELLED)
++		return status;
++
++	switch (fpi_imgdev_get_action(idev)) {
++	case IMG_ACTION_ENROLL:
++		status = FP_ENROLL_FAIL;
++		break;
++	case IMG_ACTION_VERIFY:
++	case IMG_ACTION_IDENTIFY:
++		status = FP_VERIFY_RETRY;
++		break;
++	case IMG_ACTION_CAPTURE:
++		status = FP_CAPTURE_FAIL;
++		break;
++	case IMG_ACTION_NONE:
++		break;
++	}
++
++	return status;
++}
++
++static gboolean async_transfer_completed(struct fp_img_dev *idev)
++{
++	struct async_usb_operation_data_t *op_data;
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	if (!vdev->transfer)
++		return TRUE;
++
++	op_data = vdev->transfer->user_data;
++	return op_data->completed;
++}
++
++static void async_write_callback(struct libusb_transfer *transfer)
++{
++	struct async_usb_operation_data_t *op_data = transfer->user_data;
++	struct fp_img_dev *idev = op_data->idev;
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	op_data->completed = TRUE;
++
++	if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
++		fp_dbg("USB write transfer cancelled");
++		goto out;
++	}
++
++	if (transfer->status != 0) {
++		fp_err("USB write transfer error: %s", libusb_error_name(transfer->status));
++		fpi_imgdev_session_error(idev, -transfer->status);
++		goto out;
++	}
++
++	if (transfer->actual_length != transfer->length) {
++		fp_err("Written only %d of %d bytes",
++		       transfer->actual_length, transfer->length);
++		fpi_imgdev_session_error(idev, -EIO);
++		goto out;
++	}
++
++out:
++	vdev->transfer = NULL;
++
++	if (op_data->callback)
++		op_data->callback(idev, transfer->status, op_data->callback_data);
++
++	g_free(op_data);
++}
++
++static void async_write_to_usb(struct fp_img_dev *idev,
++			       const unsigned char *data, int data_size,
++			       async_operation_cb callback, void* callback_data)
++{
++	struct async_usb_operation_data_t *op_data;
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	g_assert(async_transfer_completed(idev));
++
++	vdev->transfer = libusb_alloc_transfer(0);
++	vdev->transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
++
++	op_data = g_new0(struct async_usb_operation_data_t, 1);
++	op_data->idev = idev;
++	op_data->callback = callback;
++	op_data->callback_data = callback_data;
++
++	libusb_fill_bulk_transfer(vdev->transfer, fpi_dev_get_usb_dev(FP_DEV(idev)),
++				  EP_OUT, (unsigned char *) data, data_size,
++				  async_write_callback, op_data, VFS_USB_TIMEOUT);
++	libusb_submit_transfer(vdev->transfer);
++}
++
++static void async_read_callback(struct libusb_transfer *transfer)
++{
++	struct async_usb_operation_data_t *op_data = transfer->user_data;
++	struct fp_img_dev *idev;
++	struct vfs_dev_t *vdev;
++
++	idev = op_data->idev;
++	vdev = VFS_DEV_FROM_IMG(idev);
++	vdev->buffer_length = 0;
++
++	if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
++		fp_dbg("USB read transfer cancelled");
++		goto out;
++	}
++
++	if (transfer->status != 0) {
++		fp_err("USB read transfer error: %s",
++		       libusb_error_name(transfer->status));
++		fpi_imgdev_session_error(idev, -transfer->status);
++		goto out;
++	}
++
++	vdev->buffer_length = transfer->actual_length;
++
++out:
++	vdev->transfer = NULL;
++
++	if (op_data->callback)
++		op_data->callback(idev, transfer->status, op_data->callback_data);
++
++	g_free(op_data);
++}
++
++static void async_read_from_usb(struct fp_img_dev *idev, int read_mode,
++				unsigned char *buffer, int buffer_size,
++				async_operation_cb callback, void* callback_data)
++{
++	struct async_usb_operation_data_t *op_data;
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	g_assert(async_transfer_completed(idev));
++
++	vdev->transfer = libusb_alloc_transfer(0);
++	vdev->transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
++
++	op_data = g_new0(struct async_usb_operation_data_t, 1);
++	op_data->idev = idev;
++	op_data->callback = callback;
++	op_data->callback_data = callback_data;
++
++	switch (read_mode) {
++	case VFS_READ_INTERRUPT:
++		libusb_fill_interrupt_transfer(vdev->transfer,
++		                               fpi_dev_get_usb_dev(FP_DEV(idev)),
++					       EP_INTERRUPT,
++					       buffer, buffer_size,
++					       async_read_callback, op_data,
++					       VFS_USB_INTERRUPT_TIMEOUT);
++		break;
++	case VFS_READ_BULK:
++		libusb_fill_bulk_transfer(vdev->transfer,
++		                          fpi_dev_get_usb_dev(FP_DEV(idev)), EP_IN,
++					  buffer, buffer_size,
++					  async_read_callback, op_data,
++					  VFS_USB_TIMEOUT);
++		break;
++	default:
++		g_assert_not_reached();
++	}
++
++	libusb_submit_transfer(vdev->transfer);
++}
++
++struct async_usb_encrypted_operation_data_t {
++	async_operation_cb callback;
++	void *callback_data;
++
++	unsigned char *encrypted_data;
++	int encrypted_data_size;
++};
++
++static void async_write_encrypted_callback(struct fp_img_dev *idev, int status, void *data)
++{
++	struct async_usb_encrypted_operation_data_t *enc_op = data;
++
++	if (enc_op->callback)
++		enc_op->callback(idev, status, enc_op->callback_data);
++
++	free(enc_op->encrypted_data);
++	free(enc_op);
++}
++
++static void async_write_encrypted_to_usb(struct fp_img_dev *idev,
++					const unsigned char *data, int data_size,
++					async_operation_cb callback, void* callback_data)
++{
++	struct async_usb_encrypted_operation_data_t *enc_op;
++	unsigned char *encrypted_data;
++	int encrypted_data_size;
++
++	encrypted_data = tls_encrypt(idev, data, data_size,
++				     &encrypted_data_size);
++
++	enc_op = g_new0(struct async_usb_encrypted_operation_data_t, 1);
++	enc_op->callback = callback;
++	enc_op->callback_data = callback_data;
++	enc_op->encrypted_data = encrypted_data;
++	enc_op->encrypted_data_size = encrypted_data_size;
++
++	async_write_to_usb(idev, encrypted_data, encrypted_data_size,
++			   async_write_encrypted_callback, enc_op);
++}
++
++static void async_read_encrypted_callback(struct fp_img_dev *idev, int status, void *data)
++{
++	struct async_usb_encrypted_operation_data_t *enc_op = data;
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	enc_op->encrypted_data = g_memdup(vdev->buffer, vdev->buffer_length);
++	enc_op->encrypted_data_size = vdev->buffer_length;
++
++	if (status == LIBUSB_TRANSFER_COMPLETED &&
++	    enc_op->encrypted_data && enc_op->encrypted_data_size &&
++	    !tls_decrypt(idev, enc_op->encrypted_data,
++			 enc_op->encrypted_data_size,
++			 vdev->buffer, &vdev->buffer_length)) {
++		status = LIBUSB_TRANSFER_ERROR;
++	}
++
++	if (enc_op->callback)
++		enc_op->callback(idev, status, enc_op->callback_data);
++
++	free(enc_op->encrypted_data);
++	free(enc_op);
++}
++
++static void async_read_decrypt_from_usb(struct fp_img_dev *idev, int read_mode,
++					unsigned char *buffer, int buffer_size,
++					async_operation_cb callback, void* callback_data)
++{
++	struct async_usb_encrypted_operation_data_t *enc_op;
++
++	enc_op = g_new0(struct async_usb_encrypted_operation_data_t, 1);
++	enc_op->callback = callback;
++	enc_op->callback_data = callback_data;
++
++	async_read_from_usb(idev, read_mode, buffer, buffer_size,
++			    async_read_encrypted_callback, enc_op);
++}
++
++struct async_data_exchange_t {
++	async_operation_cb callback;
++	void* callback_data;
++
++	int exchange_mode;
++	unsigned char *buffer;
++	int buffer_size;
++};
++
++static void on_async_data_exchange_cb(struct fp_img_dev *idev,
++				      int status, void *data)
++{
++	struct async_data_exchange_t *dex = data;
++
++	if (status == LIBUSB_TRANSFER_COMPLETED) {
++		if (dex->exchange_mode == DATA_EXCHANGE_PLAIN) {
++			async_read_from_usb(idev, VFS_READ_BULK,
++					    dex->buffer,
++					    dex->buffer_size,
++					    dex->callback, dex->callback_data);
++		} else if (dex->exchange_mode == DATA_EXCHANGE_ENCRYPTED) {
++			async_read_decrypt_from_usb(idev, VFS_READ_BULK,
++						    dex->buffer,
++						    dex->buffer_size,
++						    dex->callback,
++						    dex->callback_data);
++		}
++	} else if (dex->callback) {
++		dex->callback(idev, status, dex->callback_data);
++	}
++
++	g_free(dex);
++}
++
++static void async_data_exchange(struct fp_img_dev *idev, int exchange_mode,
++				const unsigned char *data, int data_size,
++				unsigned char *buffer, int buffer_size,
++				async_operation_cb callback, void* callback_data)
++{
++	struct async_data_exchange_t *dex;
++
++	dex = g_new0(struct async_data_exchange_t, 1);
++	dex->buffer = buffer;
++	dex->buffer_size = buffer_size;
++	dex->callback = callback;
++	dex->callback_data = callback_data;
++	dex->exchange_mode = exchange_mode;
++
++	if (dex->exchange_mode == DATA_EXCHANGE_PLAIN) {
++		async_write_to_usb(idev, data, data_size,
++				   on_async_data_exchange_cb, dex);
++	} else if (dex->exchange_mode == DATA_EXCHANGE_ENCRYPTED) {
++		async_write_encrypted_to_usb(idev, data, data_size,
++					     on_async_data_exchange_cb, dex);
++	} else {
++		fp_err("Unknown exchange mode selected\n");
++		fpi_imgdev_session_error(idev, -EIO);
++	}
++}
++
++static void async_transfer_callback_with_ssm(struct fp_img_dev *idev,
++					     int status, void *data)
++{
++	struct fpi_ssm *ssm = data;
++
++	if (status == LIBUSB_TRANSFER_COMPLETED) {
++		fpi_ssm_next_state(ssm);
++	} else {
++		fpi_imgdev_session_error(idev, -status);
++		fpi_ssm_mark_failed(ssm, status);
++	}
++}
++
++static void generate_main_seed(struct fp_img_dev *idev, struct vfs_init_t *vinit) {
++	char name[NAME_MAX], serial[NAME_MAX];
++	FILE *name_file, *serial_file;
++	int name_len, serial_len;
++
++	if (!(name_file = fopen(DMI_PRODUCT_NAME_NODE, "r"))) {
++		fp_err("Can't open " DMI_PRODUCT_NAME_NODE);
++		fpi_imgdev_session_error(idev, -EIO);
++		return;
++	}
++	if (!(serial_file = fopen(DMI_PRODUCT_SERIAL_NODE, "r"))) {
++		fp_err("Can't open " DMI_PRODUCT_SERIAL_NODE);
++		fpi_imgdev_session_error(idev, -EIO);
++		goto out_serial;
++	}
++
++	if (fscanf(name_file, "%s", name) != 1) {
++		fp_err("Can't parse product name from " DMI_PRODUCT_NAME_NODE);
++		fpi_imgdev_session_error(idev, -EIO);
++		goto out_closeall;
++	}
++
++	if (fscanf(serial_file, "%s", serial) != 1) {
++		fp_err("Can't parse product name from " DMI_PRODUCT_SERIAL_NODE);
++		fpi_imgdev_session_error(idev, -EIO);
++		goto out_closeall;
++	}
++
++	name_len = strlen(name);
++	serial_len = strlen(serial);
++	vinit->main_seed_length = name_len + serial_len + 2;
++	vinit->main_seed = g_malloc0(vinit->main_seed_length);
++
++	memcpy(vinit->main_seed, name, name_len + 1);
++	memcpy(vinit->main_seed + name_len + 1, serial, serial_len + 1);
++
++out_closeall:
++	fclose(serial_file);
++out_serial:
++	fclose(name_file);
++}
++
++#define usb_operation(func, dev) usb_operation_perform(STRINGIZE(func), func, idev)
++static gboolean usb_operation_perform(const char *op, int error, struct fp_img_dev *idev)
++{
++	if (error != 0) {
++		fp_err("USB operation '%s' failed: %s", op, libusb_error_name(error));
++		if (idev) {
++			fpi_imgdev_session_error(idev, -EIO);
++		}
++		return FALSE;
++	}
++
++	return TRUE;
++}
++
++/*
++static gboolean openssl_operation(int ret, struct fp_img_dev *idev)
++{
++	if (ret != TRUE) {
++		fp_err("OpenSSL operation failed: %d", ret);
++		if (idev) {
++			fpi_imgdev_session_error(idev, -EIO);
++		}
++		return FALSE;
++	}
++
++	return TRUE;
++}
++*/
++
++static void timeout_fpi_ssm_next_state(struct fp_dev *dev, void *data)
++{
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_DEV(dev);
++	struct fpi_ssm *ssm = data;
++
++	vdev->timeout = NULL;
++	fpi_ssm_next_state(ssm);
++}
++
++static PK11Context* hmac_make_context(const unsigned char *key_bytes, int key_len)
++{
++	PK11SymKey *pkKey;
++	CK_MECHANISM_TYPE hmacMech = CKM_SHA256_HMAC;
++	PK11SlotInfo *slot = PK11_GetBestSlot(hmacMech, NULL);
++
++	SECItem key;
++
++	key.data = (unsigned char*) key_bytes;
++	key.len = key_len;
++
++	pkKey = PK11_ImportSymKey(slot, hmacMech, PK11_OriginUnwrap, CKA_SIGN, &key, NULL);
++
++	SECItem param = { .type = siBuffer, .data = NULL, .len = 0 };
++
++	PK11Context* context = PK11_CreateContextBySymKey(hmacMech, CKA_SIGN, pkKey, &param);
++	PK11_DigestBegin(context);
++	PK11_FreeSlot(slot);
++	PK11_FreeSymKey(pkKey);
++
++	return context;
++}
++
++static unsigned char* hmac_compute(const unsigned char *key, int key_len, unsigned char* data, int data_len)
++{
++	// XXX: REUSE CONTEXT HERE, don't create it all the times
++	PK11Context* context = hmac_make_context(key, key_len);
++	PK11_DigestOp(context, data, data_len);
++
++	int len = 0x20;
++	unsigned char *res = malloc(len);
++	PK11_DigestFinal(context, res, &len, len);
++	PK11_DestroyContext(context, PR_TRUE);
++
++	return res;
++}
++
++static void mac_then_encrypt(unsigned char type, unsigned char *key_block, const unsigned char *data, int data_len, unsigned char **res, int *res_len) {
++	unsigned char *all_data, *hmac, *pad;
++	const unsigned char iv[] = {
++		0x4b, 0x77, 0x62, 0xff, 0xa9, 0x03, 0xc1, 0x1e,
++		0x6f, 0xd8, 0x35, 0x93, 0x17, 0x2d, 0x54, 0xef
++	};
++
++	int prefix_len = (type != 0xFF) ? 5 : 0;
++
++	// header for hmac + data + hmac
++	all_data = malloc(prefix_len + data_len + 0x20);
++	all_data[0] = type; all_data[1] = all_data[2] = 0x03;
++	all_data[3] = (data_len >> 8) & 0xFF;
++	all_data[4] = data_len & 0xFF;
++	memcpy(all_data + prefix_len, data, data_len);
++
++	hmac = hmac_compute(key_block, 0x20, all_data, prefix_len + data_len);
++	memcpy(all_data + prefix_len + data_len, hmac, 0x20);
++	free(hmac);
++
++	EVP_CIPHER_CTX *context = EVP_CIPHER_CTX_new();
++	EVP_EncryptInit(context, EVP_aes_256_cbc(), key_block + 0x40, iv);
++	EVP_CIPHER_CTX_set_padding(context, 0);
++
++	*res_len = ((data_len + 16) / 16) * 16 + 0x30;
++	*res = malloc(*res_len);
++	memcpy(*res, iv, 0x10);
++	int written = 0, wr2, wr3 = 0;
++
++	EVP_EncryptUpdate(context, *res + 0x10, &written, all_data + prefix_len, data_len + 0x20);
++
++	int pad_len = *res_len - (0x30 + data_len);
++	if (pad_len == 0) {
++		pad_len = 16;
++	}
++	pad = malloc(pad_len);
++	memset(pad, pad_len - 1, pad_len);
++
++	EVP_EncryptUpdate(context, *res + 0x10 + written, &wr3, pad, pad_len);
++
++	EVP_EncryptFinal(context, *res + 0x10 + written + wr3, &wr2);
++	*res_len = written + wr2 + wr3 + 0x10;
++
++	free(all_data);
++	free(pad);
++
++	EVP_CIPHER_CTX_free(context);
++}
++
++static unsigned char *tls_encrypt(struct fp_img_dev *idev,
++				  const unsigned char *data, int data_size,
++				  int *encrypted_len_out) {
++	struct vfs_dev_t *vdev;
++	unsigned char *res, *wr;
++	int res_len;
++
++	vdev = VFS_DEV_FROM_IMG(idev);
++	g_assert(vdev->key_block);
++
++	mac_then_encrypt(0x17, vdev->key_block, data, data_size, &res, &res_len);
++
++	wr = malloc(res_len + 5);
++	memcpy(wr + 5, res, res_len);
++	wr[0] = 0x17; wr[1] = wr[2] = 0x03; wr[3] = res_len >> 8; wr[4] = res_len & 0xFF;
++
++	*encrypted_len_out = res_len + 5;
++
++	free(res);
++
++	return wr;
++}
++
++static gboolean tls_decrypt(struct fp_img_dev *idev,
++			    const unsigned char *buffer, int buffer_size,
++			    unsigned char *output_buffer, int *output_len)
++{
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	int buff_len = buffer_size - 5;
++	int out_len = buff_len - 0x10;
++	int tlen1 = 0, tlen2;
++	gboolean ret = FALSE;
++
++	g_return_val_if_fail(buffer != NULL, FALSE);
++	g_return_val_if_fail(buffer_size > 0, FALSE);
++	g_assert(vdev->key_block);
++
++	buffer += 5;
++	*output_len = 0;
++
++	EVP_CIPHER_CTX *context = EVP_CIPHER_CTX_new();
++	if (!EVP_DecryptInit(context, EVP_aes_256_cbc(), vdev->key_block + 0x60, buffer)) {
++		fp_err("Decryption failed, error: %lu, %s",
++		       ERR_peek_last_error(), ERR_error_string(ERR_peek_last_error(), NULL));
++		goto out;
++	}
++
++	EVP_CIPHER_CTX_set_padding(context, 0);
++
++	if (!EVP_DecryptUpdate(context, output_buffer, &tlen1, buffer + 0x10, out_len)) {
++		fp_err("Decryption failed, error: %lu, %s",
++		       ERR_peek_last_error(), ERR_error_string(ERR_peek_last_error(), NULL));
++		goto out;
++	}
++
++	if (!EVP_DecryptFinal(context, output_buffer + tlen1, &tlen2)) {
++		fp_err("Decryption failed, error: %lu, %s",
++		       ERR_peek_last_error(), ERR_error_string(ERR_peek_last_error(), NULL));
++		goto out;
++	}
++
++	*output_len = tlen1 + tlen2 - 0x20 - (output_buffer[out_len - 1] + 1);
++	ret = TRUE;
++
++	out:
++	EVP_CIPHER_CTX_free(context);
++
++	return ret;
++}
++
++static gboolean check_data_exchange(struct vfs_dev_t *vdev, const struct data_exchange_t *dex)
++{
++	if (dex->rsp_length >= 0 && vdev->buffer_length != dex->rsp_length) {
++		return FALSE;
++	} else if (dex->rsp_length > 0 && dex->rsp != NULL) {
++		int i;
++		const unsigned char *expected = dex->rsp;
++
++		for (i = 0; i < vdev->buffer_length; ++i) {
++			if (vdev->buffer[i] != expected[i]) {
++				fp_warn("Reply mismatch, expected at char %d "
++					"(actual 0x%x, expected  0x%x)",
++					i, vdev->buffer[i], expected[i]);
++
++				if (!dex->weak_match)
++					return FALSE;
++			}
++		}
++	}
++
++	return TRUE;
++}
++
++static gboolean check_data_exchange_dbg(struct vfs_dev_t *vdev, const struct data_exchange_t *dex)
++{
++	gboolean ret = check_data_exchange(vdev, dex);
++
++	if (!ret) {
++		if (dex->rsp_length >= 0 && vdev->buffer_length != dex->rsp_length) {
++			fp_err("Expected len: %d, but got %d\n",
++			       dex->rsp_length, vdev->buffer_length);
++		}
++
++		print_hex(vdev->buffer, vdev->buffer_length);
++	}
++
++	return ret;
++}
++
++struct data_exchange_async_data_t {
++	struct fpi_ssm *ssm;
++	const struct data_exchange_t *dex;
++};
++
++static void on_data_exchange_cb(struct fp_img_dev *idev, int status, void *data)
++{
++	struct data_exchange_async_data_t *dex_data = data;
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	if (status == LIBUSB_TRANSFER_COMPLETED) {
++		if (check_data_exchange_dbg(vdev, dex_data->dex)) {
++			fpi_ssm_next_state(dex_data->ssm);
++		} else {
++			status = LIBUSB_TRANSFER_ERROR;
++		}
++	}
++
++	if (status != LIBUSB_TRANSFER_COMPLETED) {
++		fp_err("Data exchange failed at state %d, usb error: %s",
++			fpi_ssm_get_cur_state(dex_data->ssm), libusb_error_name(status));
++		if (status != LIBUSB_TRANSFER_CANCELLED)
++			fpi_imgdev_session_error(idev, -EIO);
++
++		fpi_ssm_mark_failed(dex_data->ssm, status);
++	}
++
++	g_free(dex_data);
++}
++
++static void do_data_exchange(struct fp_img_dev *idev, struct fpi_ssm *ssm, const struct data_exchange_t *dex, int mode)
++{
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	struct data_exchange_async_data_t *dex_data;
++
++	dex_data = g_new0(struct data_exchange_async_data_t, 1);
++	dex_data->ssm = ssm;
++	dex_data->dex = dex;
++
++	async_data_exchange(idev, mode, dex->msg, dex->msg_length,
++			    vdev->buffer, VFS_USB_BUFFER_SIZE,
++			    on_data_exchange_cb, dex_data);
++}
++
++static void TLS_PRF2(const unsigned char *secret, int secret_len, char *str,
++		     const unsigned char *seed40, int seed40_len,
++		     unsigned char *out_buffer, int buffer_len)
++{
++	int total_len = 0;
++	int str_len = strlen(str);
++	unsigned char seed[str_len + seed40_len];
++	memcpy(seed, str, str_len);
++	memcpy(seed + str_len, seed40, seed40_len);
++	int seed_len = str_len + seed40_len;
++	unsigned char *a = hmac_compute(secret, secret_len, seed, seed_len);
++
++	while (total_len < buffer_len) {
++		unsigned char buffer[0x20 + seed_len];
++		memcpy(buffer, a, 0x20);
++		memcpy(buffer + 0x20, seed, seed_len);
++
++		unsigned char *p = hmac_compute(secret, secret_len, buffer, 0x20 + seed_len);
++		memcpy(out_buffer + total_len, p, MIN(0x20, buffer_len - total_len));
++		free(p);
++
++		total_len += 0x20;
++
++		unsigned char *t = hmac_compute(secret, secret_len, a, 0x20);
++		free(a);
++		a = t;
++	}
++	free(a);
++}
++
++static gboolean check_pad(unsigned char *data, int len)
++{
++    int pad_size = data[len - 1];
++
++    for(int i = 0; i < pad_size; ++i) {
++	if (data[len - 1 - i] != pad_size) {
++	    return FALSE;
++	}
++    }
++
++    return TRUE;
++}
++
++static void reverse_mem(unsigned char* data, int size)
++{
++    unsigned char tmp;
++    for (int i = 0; i < size / 2; ++i) {
++	tmp = data[i];
++	data[i] = data[size - 1 - i];
++	data[size - 1 - i] = tmp;
++    }
++}
++
++static gboolean initialize_ecdsa_key(struct vfs_init_t *vinit, unsigned char *enc_data, int res_len)
++{
++	int tlen1 = 0, tlen2;
++	unsigned char *res = NULL;
++	gboolean ret;
++	EVP_CIPHER_CTX *context;
++
++	ret = FALSE;
++	context = EVP_CIPHER_CTX_new();
++
++	if (!EVP_DecryptInit(context, EVP_aes_256_cbc(), vinit->masterkey_aes, enc_data)) {
++		fp_err("Failed to initialize EVP decrypt, error: %lu, %s",
++		       ERR_peek_last_error(), ERR_error_string(ERR_peek_last_error(), NULL));
++		goto out;
++	}
++
++	res = malloc(res_len);
++	EVP_CIPHER_CTX_set_padding(context, 0);
++
++	if (!EVP_DecryptUpdate(context, res, &tlen1, enc_data + 0x10, res_len)) {
++		fp_err("Failed to EVP decrypt, error: %lu, %s",
++		       ERR_peek_last_error(), ERR_error_string(ERR_peek_last_error(), NULL));
++		goto out;
++	}
++
++	if (!EVP_DecryptFinal(context, res + tlen1, &tlen2)) {
++		fp_err("EVP Final decrypt failed, error: %lu, %s",
++		       ERR_peek_last_error(), ERR_error_string(ERR_peek_last_error(), NULL));
++		goto out;
++	}
++
++	reverse_mem(res, 0x20);
++	reverse_mem(res + 0x20, 0x20);
++	reverse_mem(res + 0x40, 0x20);
++
++	memcpy(vinit->ecdsa_private_key, res, VFS_ECDSA_PRIVATE_KEY_SIZE);
++
++	ret = check_pad(res, res_len);
++out:
++	EVP_CIPHER_CTX_free(context);
++	free(res);
++
++	return ret;
++}
++
++static gboolean make_ecdsa_key(struct vfs_init_t *vinit, unsigned char *data)
++{
++	if (!initialize_ecdsa_key(vinit, data + 0x52, 0x70))
++		return FALSE;
++
++	memset(vinit->ecdsa_private_key, 0, 0x40);
++	// 97 doesn't have XY in private key
++	memcpy(vinit->ecdsa_private_key, data + 0x11e, 0x20);
++	reverse_mem(vinit->ecdsa_private_key, 0x20);
++
++	memcpy(vinit->ecdsa_private_key + 0x20, data + 0x162, 0x20);
++	reverse_mem(vinit->ecdsa_private_key + 0x20, 0x20);
++
++	return TRUE;
++}
++
++static EC_KEY *load_key(const unsigned char *data, gboolean is_private)
++{
++	BIGNUM *x = BN_bin2bn(data, 0x20, NULL);
++	BIGNUM *y = BN_bin2bn(data + 0x20, 0x20, NULL);
++	BIGNUM *d = NULL;
++	EC_KEY *key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
++
++	if (!EC_KEY_set_public_key_affine_coordinates(key, x,y)) {
++		fp_err("Failed to set public key coordinates, error: %lu, %s",
++		       ERR_peek_last_error(), ERR_error_string(ERR_peek_last_error(), NULL));
++		goto err;
++	}
++
++	if (is_private) {
++		d = BN_bin2bn(data + 0x40, 0x20, NULL);
++		if (!EC_KEY_set_private_key(key, d)) {
++			fp_err("Failed to set private key, error: %lu, %s",
++				ERR_peek_last_error(), ERR_error_string(ERR_peek_last_error(), NULL));
++			goto err;
++		}
++	}
++
++	if (!EC_KEY_check_key(key)) {
++		fp_err("Failed to check key, error: %lu, %s",
++			ERR_peek_last_error(), ERR_error_string(ERR_peek_last_error(), NULL));
++		goto err;
++	}
++
++	goto out;
++
++err:
++	g_clear_pointer(&key, EC_KEY_free);
++
++out:
++	g_clear_pointer(&x, BN_free);
++	g_clear_pointer(&y, BN_free);
++	g_clear_pointer(&d, BN_free);
++
++	return key;
++}
++
++static void fill_buffer_with_random(unsigned char *buffer, int size)
++{
++	int i;
++	srand(time(NULL));
++
++	for (i = 0; i < size; ++i)
++		buffer[i] = rand() % 0x100;
++}
++
++static unsigned char *sign2(EC_KEY* key, unsigned char *data, int data_len) {
++	int len = 0;
++	unsigned char *res = NULL;
++
++	do {
++		ECDSA_SIG *sig = ECDSA_do_sign(data, data_len, key);
++		len = i2d_ECDSA_SIG(sig, NULL);
++
++		free(res);
++		res = malloc(len);
++		unsigned char *f = res;
++		i2d_ECDSA_SIG(sig, &f);
++		ECDSA_SIG_free(sig);
++	} while (len != VFS_ECDSA_SIGNATURE_SIZE);
++
++	return res;
++}
++
++struct tls_handshake_t {
++	struct fpi_ssm *parent_ssm;
++	struct vfs_init_t *vinit;
++	HASHContext *tls_hash_context;
++	HASHContext *tls_hash_context2;
++	unsigned char read_buffer[VFS_USB_BUFFER_SIZE];
++	unsigned char client_random[0x20];
++	unsigned char master_secret[0x30];
++	unsigned char *client_hello;
++};
++
++static void handshake_ssm(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	struct tls_handshake_t *tlshd = data;
++	struct vfs_init_t *vinit = tlshd->vinit;
++
++	switch(fpi_ssm_get_cur_state(ssm)) {
++	case TLS_HANDSHAKE_STATE_CLIENT_HELLO:
++	{
++		time_t current_time;
++		unsigned char *client_hello;
++
++		tlshd->tls_hash_context = HASH_Create(HASH_AlgSHA256);
++		tlshd->tls_hash_context2 = HASH_Create(HASH_AlgSHA256);
++
++		HASH_Begin(tlshd->tls_hash_context);
++		HASH_Begin(tlshd->tls_hash_context2);
++
++		client_hello = malloc(G_N_ELEMENTS(TLS_CLIENT_HELLO));
++		tlshd->client_hello = client_hello;
++
++		current_time = time(NULL);
++		memcpy(tlshd->client_random, &current_time, sizeof(time_t));
++		fill_buffer_with_random(tlshd->client_random + 4, G_N_ELEMENTS(tlshd->client_random) - 4);
++
++		memcpy(client_hello, TLS_CLIENT_HELLO, G_N_ELEMENTS(TLS_CLIENT_HELLO));
++		memcpy(client_hello + 0xf, tlshd->client_random, G_N_ELEMENTS(tlshd->client_random));
++		HASH_Update(tlshd->tls_hash_context, client_hello + 0x09, 0x43);
++		HASH_Update(tlshd->tls_hash_context2, client_hello + 0x09, 0x43);
++
++		async_data_exchange(idev, DATA_EXCHANGE_PLAIN,
++				    client_hello, G_N_ELEMENTS(TLS_CLIENT_HELLO),
++				    tlshd->read_buffer, sizeof(tlshd->read_buffer),
++				    async_transfer_callback_with_ssm, ssm);
++
++		break;
++	}
++	case TLS_HANDSHAKE_STATE_SERVER_HELLO_RCV:
++	{
++		unsigned char server_random[0x40];
++		unsigned char seed[0x40], expansion_seed[0x40];
++		unsigned char *pre_master_secret;
++		size_t pre_master_secret_len;
++
++		EC_KEY *priv_key, *pub_key;
++		EVP_PKEY_CTX *ctx;
++		EVP_PKEY *priv, *pub;
++
++		memcpy(server_random, tlshd->read_buffer + 0xb, G_N_ELEMENTS(server_random));
++		HASH_Update(tlshd->tls_hash_context, tlshd->read_buffer + 0x05, 0x3d);
++		HASH_Update(tlshd->tls_hash_context2, tlshd->read_buffer + 0x05, 0x3d);
++
++		if (!(priv_key = load_key(PRIVKEY, TRUE))) {
++			fp_err("Impossible to load private key");
++			fpi_ssm_mark_failed(ssm, -EIO);
++			break;
++		}
++
++		if (!(pub_key = load_key(vinit->pubkey, FALSE))) {
++			fp_err("Impossible to load private key");
++			fpi_ssm_mark_failed(ssm, -EIO);
++			break;
++		}
++
++		priv = EVP_PKEY_new();
++		EVP_PKEY_set1_EC_KEY(priv, priv_key);
++		pub = EVP_PKEY_new();
++		EVP_PKEY_set1_EC_KEY(pub, pub_key);
++
++		ctx = EVP_PKEY_CTX_new(priv, NULL);
++
++		EVP_PKEY_derive_init(ctx);
++		EVP_PKEY_derive_set_peer(ctx, pub);
++
++		EVP_PKEY_derive(ctx, NULL, &pre_master_secret_len);
++
++		pre_master_secret = malloc(pre_master_secret_len);
++		if (!ECDH_compute_key(pre_master_secret, pre_master_secret_len, EC_KEY_get0_public_key(pub_key), priv_key, NULL)) {
++			fp_err("Failed to compute key, error: %lu, %s",
++			ERR_peek_last_error(), ERR_error_string(ERR_peek_last_error(), NULL));
++			fpi_ssm_mark_failed(ssm, ERR_peek_last_error());
++			g_free(pre_master_secret);
++			break;
++		}
++
++		memcpy(seed, tlshd->client_random, G_N_ELEMENTS(tlshd->client_random));
++		memcpy(seed + G_N_ELEMENTS(tlshd->client_random), server_random, G_N_ELEMENTS(seed) - G_N_ELEMENTS(tlshd->client_random));
++
++		memcpy(expansion_seed + (G_N_ELEMENTS(expansion_seed) - G_N_ELEMENTS(tlshd->client_random)), tlshd->client_random, G_N_ELEMENTS(tlshd->client_random));
++		memcpy(expansion_seed, server_random, G_N_ELEMENTS(expansion_seed) - G_N_ELEMENTS(tlshd->client_random));
++
++		TLS_PRF2(pre_master_secret, pre_master_secret_len, "master secret", seed, G_N_ELEMENTS(seed),
++			 tlshd->master_secret, G_N_ELEMENTS(tlshd->master_secret));
++		TLS_PRF2(tlshd->master_secret, G_N_ELEMENTS(tlshd->master_secret), "key expansion",
++			seed, G_N_ELEMENTS(seed), vdev->key_block, G_N_ELEMENTS(vdev->key_block));
++
++		g_free(pre_master_secret);
++		EC_KEY_free(priv_key);
++		EC_KEY_free(pub_key);
++		EVP_PKEY_free(priv);
++		EVP_PKEY_free(pub);
++		EVP_PKEY_CTX_free(ctx);
++
++		fpi_ssm_next_state(ssm);
++
++		break;
++	}
++	case TLS_HANDSHAKE_GENERATE_CERT:
++	{
++		EC_KEY *ecdsa_key;
++		unsigned char test[0x20];
++		unsigned char *cert_verify_signature, *final;
++		int len, test_len;
++
++		memcpy(vinit->tls_certificate + 0xce + 4, PRIVKEY, 0x40);
++
++		HASH_Update(tlshd->tls_hash_context, vinit->tls_certificate + 0x09, 0x109);
++		HASH_Update(tlshd->tls_hash_context2, vinit->tls_certificate + 0x09, 0x109);
++
++		HASH_End(tlshd->tls_hash_context, test, &test_len, G_N_ELEMENTS(test));
++
++		ecdsa_key = load_key(vinit->ecdsa_private_key, TRUE);
++		cert_verify_signature = sign2(ecdsa_key, test, 0x20);
++		memcpy(vinit->tls_certificate + 0x09 + 0x109 + 0x04, cert_verify_signature, VFS_ECDSA_SIGNATURE_SIZE);
++
++		// encrypted finished
++		unsigned char handshake_messages[0x20]; int len3 = 0x20;
++		HASH_Update(tlshd->tls_hash_context2, vinit->tls_certificate + 0x09 + 0x109, 0x4c);
++		HASH_End(tlshd->tls_hash_context2, handshake_messages, &len3, 0x20);
++
++		unsigned char finished_message[0x10] = { 0x14, 0x00, 0x00, 0x0c, 0 };
++		unsigned char client_finished[0x0c];
++		TLS_PRF2(tlshd->master_secret, 0x30, "client finished", handshake_messages, 0x20,
++			 client_finished, G_N_ELEMENTS(client_finished));
++		memcpy(finished_message + 0x04, client_finished, G_N_ELEMENTS(client_finished));
++		// copy handshake protocol
++
++		mac_then_encrypt(0x16, vdev->key_block, finished_message, 0x10, &final, &len);
++		memcpy(vinit->tls_certificate + 0x169, final, len);
++
++		EC_KEY_free(ecdsa_key);
++
++		g_free(cert_verify_signature);
++		g_free(final);
++
++		fpi_ssm_next_state(ssm);
++
++		break;
++	}
++	case TLS_HANDSHAKE_STATE_SEND_CERT:
++	{
++		async_data_exchange(idev, DATA_EXCHANGE_PLAIN,
++				    vinit->tls_certificate,
++				    sizeof(vinit->tls_certificate),
++				    tlshd->read_buffer, VFS_USB_BUFFER_SIZE,
++				    async_transfer_callback_with_ssm, ssm);
++
++		break;
++	}
++	case TLS_HANDSHAKE_STATE_CERT_REPLY:
++	{
++		const unsigned char WRONG_TLS_CERT_RSP[] = { 0x15, 0x03, 0x03, 0x00, 0x02 };
++
++		if (vdev->buffer_length < 50 ||
++		    memcmp(tlshd->read_buffer, WRONG_TLS_CERT_RSP,
++		           MIN(vdev->buffer_length, G_N_ELEMENTS(WRONG_TLS_CERT_RSP))) == 0) {
++			fp_err("TLS Certificate submitted isn't accepted by reader");
++			fpi_ssm_mark_failed(ssm, -EIO);
++			break;
++		}
++
++		fpi_ssm_next_state(ssm);
++
++		break;
++	}
++	default:
++		fp_err("Unknown state");
++		fpi_imgdev_session_error(idev, -EIO);
++		fpi_ssm_mark_failed(ssm, -EIO);
++	}
++}
++
++static void handshake_ssm_cb(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct tls_handshake_t *tlshd = data;
++	struct fpi_ssm *parent_ssm = tlshd->parent_ssm;
++
++	if (fpi_ssm_get_error(ssm)) {
++		fpi_imgdev_session_error(idev, fpi_ssm_get_error(ssm));
++		fpi_ssm_mark_failed(parent_ssm, fpi_ssm_get_error(ssm));
++	} else {
++		fpi_ssm_next_state(parent_ssm);
++	}
++
++	HASH_Destroy(tlshd->tls_hash_context);
++	HASH_Destroy(tlshd->tls_hash_context2);
++	g_clear_pointer(&tlshd->client_hello, g_free);
++	g_free(tlshd);
++	fpi_ssm_free(ssm);
++}
++
++static void start_handshake_ssm(struct fp_img_dev *idev, struct fpi_ssm *parent_ssm, struct vfs_init_t *vinit)
++{
++	struct fpi_ssm *ssm;
++	struct tls_handshake_t *tlshd;
++
++	tlshd = g_new0(struct tls_handshake_t, 1);
++	tlshd->parent_ssm = parent_ssm;
++	tlshd->vinit = vinit;
++
++	ssm = fpi_ssm_new(FP_DEV(idev), handshake_ssm, TLS_HANDSHAKE_STATE_LAST, tlshd);
++	fpi_ssm_start(ssm, handshake_ssm_cb);
++}
++
++static int translate_interrupt(unsigned char *interrupt, int interrupt_size)
++{
++	const int expected_size = 5;
++	const unsigned char waiting_finger[] = { 0x00, 0x00, 0x00, 0x00, 0x00 };
++	const unsigned char finger_down_prefix[] = { 0x02, 0x00, 0x40 };
++	const unsigned char scanning_prints[] = { 0x03, 0x40, 0x01, 0x00, 0x00 };
++	const unsigned char scan_completed[] = { 0x03, 0x41, 0x03, 0x00, 0x40 };
++
++	const unsigned char scan_success[] = { 0x03, 0x43, 0x04, 0x00, 0x41 };
++	const unsigned char low_quality_scan[] = { 0x03, 0x42, 0x04, 0x00, 0x40 };
++	const unsigned char scan_failed_too_short[] = { 0x03, 0x60, 0x07, 0x00, 0x40 };
++	const unsigned char scan_failed_too_short2[] = { 0x03, 0x61, 0x07, 0x00, 0x41 };
++	const unsigned char scan_failed_too_fast[] = { 0x03, 0x20, 0x07, 0x00, 0x00 };
++
++	if (sizeof(waiting_finger) == interrupt_size &&
++		memcmp(waiting_finger, interrupt, interrupt_size) == 0) {
++		fp_info("Waiting for finger...");
++		return VFS_SCAN_WAITING_FOR_FINGER;
++	}
++
++	if (expected_size == interrupt_size &&
++	     memcmp(finger_down_prefix, interrupt, sizeof(finger_down_prefix)) == 0) {
++		fp_info("Finger is on the sensor...");
++		return VFS_SCAN_FINGER_ON_SENSOR;
++	}
++
++	if (sizeof(scanning_prints) == interrupt_size &&
++	    memcmp(scanning_prints, interrupt, interrupt_size) == 0) {
++		fp_info("Scan in progress...");
++		return VFS_SCAN_IN_PROGRESS;
++	}
++
++	if (sizeof(scan_completed) == interrupt_size &&
++	    memcmp(scan_completed, interrupt, interrupt_size) == 0) {
++		fp_info("Fingerprint scan completed...");
++		return VFS_SCAN_COMPLETED;
++	}
++
++	if (sizeof(scan_success) == interrupt_size &&
++	    memcmp(scan_success, interrupt, interrupt_size) == 0) {
++		fp_info("Fingerprint scan success...");
++		return VFS_SCAN_SUCCESS;
++	}
++
++	if (sizeof(low_quality_scan) == interrupt_size &&
++	    memcmp(low_quality_scan, interrupt, interrupt_size) == 0) {
++		fp_info("Fingerprint scan success, but low quality...");
++		printf("ALTERNATIVE SCAN, let's see this result!!!!\n");
++		return VFS_SCAN_SUCCESS_LOW_QUALITY;
++	}
++
++	if (sizeof(scan_failed_too_short) == interrupt_size &&
++	    memcmp(scan_failed_too_short, interrupt, interrupt_size) == 0) {
++		fp_err("Impossible to read fingerprint, don't move your finger");
++		return VFS_SCAN_FAILED_TOO_SHORT;
++	}
++
++	if (sizeof(scan_failed_too_short2) == interrupt_size &&
++	    memcmp(scan_failed_too_short2, interrupt, interrupt_size) == 0) {
++		fp_err("Impossible to read fingerprint, don't move your finger (2)");
++		return VFS_SCAN_FAILED_TOO_SHORT;
++	}
++
++	if (sizeof(scan_failed_too_fast) == interrupt_size &&
++	    memcmp(scan_failed_too_fast, interrupt, interrupt_size) == 0) {
++		fp_err("Impossible to read fingerprint, movement was too fast");
++		return VFS_SCAN_FAILED_TOO_FAST;
++	}
++
++	fp_err("Interrupt not tracked, please report!");
++	print_hex(interrupt, interrupt_size);
++
++	return VFS_SCAN_UNKNOWN;
++}
++
++static void send_init_sequence(struct fp_img_dev *idev, struct fpi_ssm *ssm, int sequence)
++{
++	do_data_exchange(idev, ssm, &INIT_SEQUENCES[sequence], DATA_EXCHANGE_PLAIN);
++}
++
++/* Main SSM loop */
++static void init_ssm(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_DEV(dev);
++	struct vfs_init_t *vinit = data;
++
++	switch (fpi_ssm_get_cur_state(ssm)) {
++	case INIT_STATE_GENERATE_MAIN_SEED:
++		generate_main_seed(idev, vinit);
++		fpi_ssm_next_state(ssm);
++		break;
++
++	case INIT_STATE_SEQ_2:
++		if (vdev->buffer_length == 38) {
++			if (vdev->buffer[vdev->buffer_length-1] != 0x07) {
++				fp_err("Sensor not initialized, init byte is 0x%x " \
++				"(should be 0x07 on initialized devices, 0x02 " \
++				"otherwise)\n" \
++				"This is a driver in alpha state and the " \
++				"device needs to be setup in a VirtualBox " \
++				"instance running Windows, or with a native " \
++				"Windows installation first.",
++				vdev->buffer[vdev->buffer_length-1]);
++				fpi_ssm_mark_failed(ssm, -EIO);
++				break;
++			}
++		} else {
++			fp_warn("Unknown reply at init stage %d, retrying...",
++				fpi_ssm_get_cur_state(ssm));
++			fpi_ssm_jump_to_state(ssm, INIT_STATE_SEQ_1);
++			break;
++		}
++	case INIT_STATE_SEQ_1:
++	case INIT_STATE_SEQ_3:
++	case INIT_STATE_SEQ_4:
++	case INIT_STATE_SEQ_5:
++	case INIT_STATE_SEQ_6:
++		send_init_sequence(idev, ssm, fpi_ssm_get_cur_state(ssm) - INIT_STATE_SEQ_1);
++		break;
++
++	case INIT_STATE_MASTER_KEY:
++		TLS_PRF2(PRE_KEY, sizeof(PRE_KEY), "GWK", vinit->main_seed,
++			 vinit->main_seed_length,
++			 vinit->masterkey_aes, VFS_MASTER_KEY_SIZE);
++
++		fpi_ssm_next_state(ssm);
++		break;
++
++	case INIT_STATE_ECDSA_KEY:
++		if (make_ecdsa_key(vinit, vdev->buffer)) {
++			fpi_ssm_next_state(ssm);
++		} else if (memcmp(TEST_SEED, vinit->main_seed, vinit->main_seed_length) != 0) {
++			fp_warn("Failed using system seed for ECDSA key generation, "
++				"trying with a VirtualBox one");
++
++			g_clear_pointer(&vinit->main_seed, g_free);
++			vinit->main_seed = g_malloc(sizeof(TEST_SEED));
++			memcpy(vinit->main_seed, TEST_SEED, sizeof(TEST_SEED));
++			vinit->main_seed_length = sizeof(TEST_SEED);
++
++			fpi_ssm_jump_to_state(ssm, INIT_STATE_MASTER_KEY);
++		} else {
++			fp_err("Initialization failed at state %d, ECDSA key generation",
++			       fpi_ssm_get_cur_state(ssm));
++			fpi_imgdev_session_error(idev, -EIO);
++			fpi_ssm_mark_failed(ssm, -EIO);
++		}
++		break;
++
++	case INIT_STATE_TLS_CERT:
++		memcpy(vinit->tls_certificate, TLS_CERTIFICATE_BASE,
++		       G_N_ELEMENTS(TLS_CERTIFICATE_BASE));
++		memcpy(vinit->tls_certificate + 21, vdev->buffer + 0x116, 0xb8);
++
++		fpi_ssm_next_state(ssm);
++		break;
++
++	case INIT_STATE_PUBLIC_KEY:
++	{
++		const int half_key = VFS_PUBLIC_KEY_SIZE / 2;
++		memcpy(vinit->pubkey, vdev->buffer + 0x600 + 10, half_key);
++		memcpy(vinit->pubkey + half_key, vdev->buffer + 0x640 + 0xe, half_key);
++
++		reverse_mem(vinit->pubkey, half_key);
++		reverse_mem(vinit->pubkey + half_key, half_key);
++
++		fpi_ssm_next_state(ssm);
++		break;
++	}
++
++	case INIT_STATE_HANDSHAKE:
++		start_handshake_ssm(idev, ssm, vinit);
++		break;
++
++	default:
++		fp_err("Unknown state");
++		fpi_imgdev_session_error(idev, -EIO);
++		fpi_ssm_mark_failed(ssm, -EIO);
++	}
++}
++
++/* Callback for dev_open ssm */
++static void dev_open_callback(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	/* Notify open complete */
++	struct fp_img_dev *idev = FP_IMG_DEV (dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_DEV(dev);
++	struct vfs_init_t *vinit = data;
++
++	g_clear_pointer(&vdev->buffer, g_free);
++	vdev->buffer_length = 0;
++
++	if (fpi_ssm_get_error(ssm))
++		fpi_imgdev_session_error(idev, fpi_ssm_get_error(ssm));
++
++	fpi_imgdev_open_complete(idev, fpi_ssm_get_error(ssm));
++
++	g_free(vinit->main_seed);
++	g_free(vinit);
++	fpi_ssm_free(ssm);
++}
++
++/* Open device */
++static int dev_open(struct fp_img_dev *idev, unsigned long driver_data)
++{
++	struct fp_dev *dev = FP_DEV(idev);
++	struct fpi_ssm *ssm;
++	struct vfs_dev_t *vdev;
++	libusb_device_handle *udev;
++	SECStatus secs_status;
++	int usb_config;
++
++	secs_status = NSS_NoDB_Init(NULL);
++	if (secs_status != SECSuccess) {
++		fp_err("could not initialise NSS");
++		return -1;
++	}
++
++	OpenSSL_add_all_algorithms();
++	ERR_load_crypto_strings();
++
++	/* Initialize private structure */
++	vdev = g_new0(struct vfs_dev_t, 1);
++	fp_dev_set_instance_data(dev, vdev);
++
++	vdev->buffer = g_malloc(VFS_USB_BUFFER_SIZE);
++	vdev->buffer_length = 0;
++
++	udev = fpi_dev_get_usb_dev(dev);
++	usb_operation(libusb_reset_device(udev), idev);
++	usb_operation(libusb_get_configuration(udev, &usb_config), idev);
++
++	if (usb_config != 1)
++		usb_operation(libusb_set_configuration(udev, 1), idev);
++
++	usb_operation(libusb_claim_interface(udev, 0), idev);
++
++	/* Clearing previous device state */
++	ssm = fpi_ssm_new(dev, init_ssm, INIT_STATE_LAST, g_new0(struct vfs_init_t, 1));
++	fpi_ssm_start(ssm, dev_open_callback);
++
++	return 0;
++}
++
++static void led_blink_callback_with_ssm(struct fp_img_dev *idev, int status, void *data)
++{
++	struct fpi_ssm *ssm = data;
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	if (status == LIBUSB_TRANSFER_COMPLETED) {
++		vdev->timeout =
++			fpi_timeout_add(200, timeout_fpi_ssm_next_state,
++					FP_DEV(idev), ssm);
++	} else {
++		/* NO need to fail here, it's not a big issue... */
++		fp_err("LED blinking failed with error %d", status);
++		fpi_ssm_next_state(ssm);
++	}
++}
++
++struct image_download_t {
++	struct fpi_ssm *parent_ssm;
++
++	unsigned char image[144 * 144];
++	int image_size;
++};
++
++static void finger_image_download_callback(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct image_download_t *imgdown = data;
++
++	if (!fpi_ssm_get_error(ssm)) {
++		fpi_ssm_mark_completed(imgdown->parent_ssm);
++	} else {
++		fp_err("Scan failed failed at state %d, unexpected"
++		       "device reply during image download", fpi_ssm_get_cur_state(ssm));
++		fpi_imgdev_session_error(idev, fpi_ssm_get_error(ssm));
++		fpi_ssm_mark_failed(imgdown->parent_ssm, fpi_ssm_get_error(ssm));
++	}
++
++	g_free(imgdown);
++	fpi_ssm_free(ssm);
++}
++
++static void finger_image_submit(struct fp_img_dev *idev, struct image_download_t *imgdown)
++{
++	struct fp_img *img;
++
++	img = fpi_img_new(VFS_IMAGE_SIZE * VFS_IMAGE_SIZE);
++	img->flags = FP_IMG_H_FLIPPED;
++	img->width = VFS_IMAGE_SIZE;
++	img->height = VFS_IMAGE_SIZE;
++	memcpy(img->data, imgdown->image, VFS_IMAGE_SIZE * VFS_IMAGE_SIZE);
++
++	if (VFS_IMAGE_RESCALE > 1) {
++		struct fp_img *resized;
++
++		resized = fpi_img_resize(img, VFS_IMAGE_RESCALE, VFS_IMAGE_RESCALE);
++		fp_img_free(img);
++
++		img = resized;
++	}
++
++	fpi_imgdev_image_captured(idev, img);
++}
++
++static void finger_image_download_read_callback(struct fp_img_dev *idev, int status, void *data)
++{
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	struct fpi_ssm *ssm = data;
++	struct image_download_t *imgdown = fpi_ssm_get_user_data(ssm);
++	int offset = (fpi_ssm_get_cur_state(ssm) == IMAGE_DOWNLOAD_STATE_1) ? 0x12 : 0x06;
++	int data_size = vdev->buffer_length - offset;
++
++	if (status != LIBUSB_TRANSFER_COMPLETED) {
++		fp_err("Image download failed at state %d", fpi_ssm_get_cur_state(ssm));
++		if (status != LIBUSB_TRANSFER_CANCELLED)
++			fpi_imgdev_session_error(idev, -EIO);
++
++		fpi_ssm_mark_failed(ssm, status);
++		return;
++	}
++
++	memcpy(imgdown->image + imgdown->image_size, vdev->buffer + offset, data_size);
++	imgdown->image_size += data_size;
++
++	fpi_ssm_next_state(ssm);
++}
++
++static void finger_image_download_ssm(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	struct image_download_t *imgdown = data;
++
++	const unsigned char read_buffer_request[] = {
++		0x51, 0x00, 0x20, 0x00, 0x00
++	};
++
++	switch (fpi_ssm_get_cur_state(ssm)) {
++	case IMAGE_DOWNLOAD_STATE_1:
++	case IMAGE_DOWNLOAD_STATE_2:
++	case IMAGE_DOWNLOAD_STATE_3:
++		async_data_exchange(idev, DATA_EXCHANGE_ENCRYPTED,
++				    read_buffer_request,
++				    sizeof(read_buffer_request),
++				    vdev->buffer,
++				    VFS_IMAGE_SIZE * VFS_IMAGE_SIZE,
++				    finger_image_download_read_callback,
++				    ssm);
++
++		break;
++
++
++	case IMAGE_DOWNLOAD_STATE_SUBMIT:
++		finger_image_submit(idev, imgdown);
++
++		if ((fpi_imgdev_get_action(idev) == IMG_ACTION_VERIFY ||
++		     fpi_imgdev_get_action(idev) == IMG_ACTION_IDENTIFY) &&
++		    fpi_imgdev_get_action_result(idev) != FP_VERIFY_MATCH) {
++			fpi_ssm_jump_to_state(ssm, IMAGE_DOWNLOAD_STATE_RED_LED_BLINK);
++		} else {
++			fpi_ssm_jump_to_state(ssm, IMAGE_DOWNLOAD_STATE_GREEN_LED_BLINK);
++		}
++
++		break;
++
++	case IMAGE_DOWNLOAD_STATE_GREEN_LED_BLINK:
++		async_data_exchange(idev, DATA_EXCHANGE_ENCRYPTED,
++				    LED_GREEN_BLINK, G_N_ELEMENTS(LED_GREEN_BLINK),
++				    vdev->buffer, VFS_USB_BUFFER_SIZE,
++				    led_blink_callback_with_ssm, ssm);
++
++		break;
++
++
++	case IMAGE_DOWNLOAD_STATE_RED_LED_BLINK:
++		async_data_exchange(idev, DATA_EXCHANGE_ENCRYPTED,
++				    LED_RED_BLINK, G_N_ELEMENTS(LED_RED_BLINK),
++				    vdev->buffer, VFS_USB_BUFFER_SIZE,
++				    led_blink_callback_with_ssm, ssm);
++
++		break;
++
++	case IMAGE_DOWNLOAD_STATE_AFTER_GREEN_LED_BLINK:
++	case IMAGE_DOWNLOAD_STATE_AFTER_RED_LED_BLINK:
++		fpi_ssm_jump_to_state(ssm, IMAGE_DOWNLOAD_STATE_SUBMIT_RESULT);
++		break;
++
++	case IMAGE_DOWNLOAD_STATE_SUBMIT_RESULT:
++		if (fpi_imgdev_get_action(idev) == IMG_ACTION_ENROLL &&
++		    fpi_imgdev_get_action_result(idev) != FP_ENROLL_COMPLETE) {
++			start_reactivate_subsm(idev, ssm);
++		} else {
++			fpi_ssm_mark_completed(ssm);
++		}
++
++		fpi_imgdev_report_finger_status(idev, FALSE);
++		break;
++
++	default:
++		fp_err("Unknown image download state");
++		fpi_imgdev_session_error(idev, -EIO);
++		fpi_ssm_mark_failed(ssm, -EIO);
++	}
++}
++
++static void start_finger_image_download_subsm(struct fp_img_dev *idev, struct fpi_ssm *parent_ssm)
++{
++	struct fpi_ssm *ssm;
++	struct image_download_t *imgdown;
++
++	imgdown = g_new0(struct image_download_t, 1);
++	imgdown->parent_ssm = parent_ssm;
++
++	ssm = fpi_ssm_new(FP_DEV(idev),
++			  finger_image_download_ssm,
++			  IMAGE_DOWNLOAD_STATE_LAST,
++			  imgdown);
++
++	fpi_ssm_start(ssm, finger_image_download_callback);
++}
++
++struct scan_error_handler_data_t {
++	int error_code;
++	struct fpi_ssm *parent_ssm;
++};
++
++static void scan_error_handler_callback(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct scan_error_handler_data_t *error_data = data;
++
++	if (fpi_ssm_get_error(ssm)) {
++		fp_err("Scan failed failed at state %d, unexpected "
++		       "device reply during scan error handling",
++		       fpi_ssm_get_cur_state(ssm));
++
++		fpi_ssm_mark_failed(error_data->parent_ssm,
++				    error_data->error_code);
++	} else {
++		fpi_ssm_jump_to_state(error_data->parent_ssm,
++				      SCAN_STATE_WAITING_FOR_FINGER);
++	}
++
++	g_free(error_data);
++	fpi_ssm_free(ssm);
++}
++
++static void scan_error_handler_ssm(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	struct scan_error_handler_data_t *error_data = data;
++
++	switch (fpi_ssm_get_cur_state(ssm)) {
++	case SCAN_ERROR_STATE_LED_BLINK:
++		async_data_exchange(idev, DATA_EXCHANGE_ENCRYPTED,
++				    LED_RED_BLINK, G_N_ELEMENTS(LED_RED_BLINK),
++				    vdev->buffer, VFS_USB_BUFFER_SIZE,
++				    led_blink_callback_with_ssm, ssm);
++		break;
++
++	case SCAN_ERROR_STATE_REACTIVATE_REQUEST:
++		start_reactivate_subsm(idev, ssm);
++
++		if (fpi_ssm_get_error(ssm))
++			fpi_imgdev_abort_scan(idev, error_data->error_code);
++
++		fpi_imgdev_report_finger_status(idev, FALSE);
++		break;
++
++	default:
++		fp_err("Unknown scan state");
++		fpi_imgdev_session_error(idev, -EIO);
++		fpi_ssm_mark_failed(ssm, -EIO);
++	}
++}
++
++static void start_scan_error_handler_ssm(struct fp_img_dev *idev, struct fpi_ssm *parent_ssm, int error_code)
++{
++	struct scan_error_handler_data_t *error_data;
++	struct fpi_ssm *ssm;
++
++	error_data = g_new0(struct scan_error_handler_data_t, 1);
++	error_data->error_code = error_code;
++	error_data->parent_ssm = parent_ssm;
++
++	ssm = fpi_ssm_new(FP_DEV(idev), scan_error_handler_ssm,
++			  SCAN_ERROR_STATE_LAST, error_data);
++	fpi_ssm_start(ssm, scan_error_handler_callback);
++}
++
++static void finger_scan_callback(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	if (fpi_ssm_get_error(ssm)) {
++		fp_err("Scan failed failed at state %d, unexpected "
++		       "device reply during finger scanning", fpi_ssm_get_cur_state(ssm));
++
++		if (fpi_ssm_get_cur_state(ssm) > SCAN_STATE_FINGER_ON_SENSOR) {
++			fpi_imgdev_abort_scan(idev, fpi_ssm_get_error(ssm));
++			fpi_imgdev_report_finger_status(idev, FALSE);
++		} else {
++			fpi_imgdev_session_error(idev, fpi_ssm_get_error(ssm));
++		}
++	}
++
++	vdev->buffer_length = 0;
++	g_clear_pointer(&vdev->buffer, g_free);
++
++	fpi_ssm_free(ssm);
++}
++
++static void finger_scan_interrupt_callback(struct fp_img_dev *idev, int status, void *data)
++{
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	struct fpi_ssm *ssm = data;
++	int interrupt_type;
++
++	if (status == LIBUSB_TRANSFER_COMPLETED) {
++		interrupt_type = translate_interrupt(vdev->buffer,
++						     vdev->buffer_length);
++		fpi_ssm_jump_to_state(ssm, interrupt_type);
++	} else if (status == LIBUSB_TRANSFER_CANCELLED) {
++		fpi_ssm_mark_completed(ssm);
++	} else {
++		fpi_ssm_mark_failed(ssm, usb_error_to_fprint_fail(idev, status));
++	}
++}
++
++static void finger_scan_ssm(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	int error_code;
++
++	switch (fpi_ssm_get_cur_state(ssm)) {
++	case SCAN_STATE_FINGER_ON_SENSOR:
++		fpi_imgdev_report_finger_status(idev, TRUE);
++
++	case SCAN_STATE_WAITING_FOR_FINGER:
++	case SCAN_STATE_IN_PROGRESS:
++	case SCAN_STATE_COMPLETED:
++		async_read_from_usb(idev, VFS_READ_INTERRUPT,
++				    vdev->buffer, VFS_USB_INTERRUPT_BUFFER_SIZE,
++				    finger_scan_interrupt_callback, ssm);
++
++		break;
++
++	case SCAN_STATE_FAILED_TOO_SHORT:
++	case SCAN_STATE_FAILED_TOO_FAST:
++		switch (fpi_imgdev_get_action(idev)) {
++		case IMG_ACTION_ENROLL:
++			error_code = FP_ENROLL_RETRY_TOO_SHORT;
++			break;
++		case IMG_ACTION_VERIFY:
++		case IMG_ACTION_IDENTIFY:
++			error_code = FP_VERIFY_RETRY_TOO_SHORT;
++			break;
++		case IMG_ACTION_CAPTURE:
++			error_code = FP_CAPTURE_FAIL;
++			break;
++		default:
++			error_code = -1;
++		}
++
++		start_scan_error_handler_ssm(idev, ssm, error_code);
++		break;
++
++	case SCAN_STATE_SUCCESS_LOW_QUALITY:
++		if (fpi_imgdev_get_action(idev) == IMG_ACTION_ENROLL) {
++			error_code = FP_ENROLL_RETRY_CENTER_FINGER;
++			start_scan_error_handler_ssm(idev, ssm, error_code);
++		} else if (fpi_imgdev_get_action(idev) == IMG_ACTION_VERIFY) {
++			fp_warn("Low quality image in verification, might fail");
++			fpi_ssm_jump_to_state(ssm, SCAN_STATE_SUCCESS);
++		}
++		break;
++
++	case SCAN_STATE_SUCCESS:
++		start_finger_image_download_subsm(idev, ssm);
++		break;
++
++	default:
++		fp_err("Unknown scan state");
++		fpi_imgdev_session_error(idev, -EIO);
++		fpi_ssm_mark_failed(ssm, -EIO);
++	}
++}
++
++static void start_finger_scan(struct fp_img_dev *idev)
++{
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	struct fpi_ssm *ssm;
++
++	vdev->buffer = g_malloc(VFS_USB_BUFFER_SIZE);
++	vdev->buffer_length = 0;
++
++	ssm = fpi_ssm_new(FP_DEV(idev), finger_scan_ssm, SCAN_STATE_LAST, NULL);
++	fpi_ssm_start(ssm, finger_scan_callback);
++}
++
++static void send_activate_sequence(struct fp_img_dev *idev, struct fpi_ssm *ssm, int sequence)
++{
++	do_data_exchange(idev, ssm, &ACTIVATE_SEQUENCES[sequence], DATA_EXCHANGE_ENCRYPTED);
++}
++
++static void activate_device_interrupt_callback(struct fp_img_dev *idev, int status, void *data)
++{
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	struct fpi_ssm *ssm = data;
++	int interrupt_type;
++
++	if (status == LIBUSB_TRANSFER_COMPLETED) {
++		interrupt_type = translate_interrupt(vdev->buffer,
++						     vdev->buffer_length);
++
++		if (interrupt_type == VFS_SCAN_WAITING_FOR_FINGER) {
++			struct fp_dev *dev = FP_DEV(idev);
++			if (fpi_imgdev_get_action(idev) == IMG_ACTION_ENROLL &&
++			    dev->state == DEV_STATE_ENROLLING) {
++				struct fpi_ssm *child_ssm;
++				child_ssm = fpi_ssm_new(dev,
++							finger_scan_ssm,
++							SCAN_STATE_LAST,
++							NULL);
++				fpi_ssm_start_subsm(ssm, child_ssm);
++			} else {
++				fpi_ssm_next_state(ssm);
++			}
++		} else {
++			fp_err("Unexpected device interrupt (%d) at this state",
++			       interrupt_type);
++			print_hex(vdev->buffer, vdev->buffer_length);
++			fpi_ssm_mark_failed(ssm,
++					    usb_error_to_fprint_fail(idev, -EIO));
++		}
++	} else {
++		fpi_ssm_mark_failed(ssm, usb_error_to_fprint_fail(idev, status));
++	}
++}
++
++static void activate_ssm(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	switch (fpi_ssm_get_cur_state(ssm)) {
++	case ACTIVATE_STATE_GREEN_LED_ON:
++		async_data_exchange(idev, DATA_EXCHANGE_ENCRYPTED,
++				    LED_GREEN_ON, G_N_ELEMENTS(LED_GREEN_ON),
++				    vdev->buffer, VFS_USB_BUFFER_SIZE,
++				    async_transfer_callback_with_ssm, ssm);
++		break;
++	case ACTIVATE_STATE_SEQ_1:
++	case ACTIVATE_STATE_SEQ_2:
++	case ACTIVATE_STATE_SEQ_3:
++	case ACTIVATE_STATE_SEQ_4:
++	case ACTIVATE_STATE_SEQ_5:
++	case ACTIVATE_STATE_SEQ_6:
++	case ACTIVATE_STATE_SEQ_7:
++	case ACTIVATE_STATE_SCAN_MATRIX:
++		send_activate_sequence(idev, ssm, fpi_ssm_get_cur_state(ssm) - ACTIVATE_STATE_SEQ_1);
++		break;
++
++	case ACTIVATE_STATE_WAIT_DEVICE:
++		if (check_data_exchange(vdev, &MATRIX_ALREADY_ACTIVATED_DEX)) {
++			fp_info("Waiting for device not needed, already active\n");
++			fpi_ssm_next_state(ssm);
++			break;
++		}
++
++		async_read_from_usb(idev, VFS_READ_INTERRUPT,
++				    vdev->buffer, VFS_USB_INTERRUPT_BUFFER_SIZE,
++				    activate_device_interrupt_callback, ssm);
++		break;
++
++	default:
++		fp_err("Unknown state");
++		fpi_imgdev_session_error(idev, -EIO);
++		fpi_ssm_mark_failed(ssm, -EIO);
++	}
++}
++
++/* Callback for dev_activate ssm */
++static void dev_activate_callback(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	if (fpi_ssm_get_error(ssm)) {
++		fp_err("Activation failed failed at state %d, unexpected "
++		       "device reply during activation", fpi_ssm_get_cur_state(ssm));
++		fpi_imgdev_session_error(idev, fpi_ssm_get_error(ssm));
++	}
++
++	g_clear_pointer(&vdev->buffer, g_free);
++	vdev->buffer_length = 0;
++
++	fpi_imgdev_activate_complete(idev, fpi_ssm_get_error(ssm));
++
++	if (!fpi_ssm_get_error(ssm))
++		start_finger_scan(idev);
++
++	fpi_ssm_free(ssm);
++}
++
++static int dev_activate(struct fp_img_dev *idev)
++{
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	struct fpi_ssm *ssm;
++
++	// SEE IF CAN BE DONE ONLY ON CERTAIN CASES
++	vdev->buffer = g_malloc(VFS_USB_BUFFER_SIZE);
++	vdev->buffer_length = 0;
++
++	ssm = fpi_ssm_new(FP_DEV(idev), activate_ssm, ACTIVATE_STATE_LAST, NULL);
++	fpi_ssm_start(ssm, dev_activate_callback);
++
++	return 0;
++}
++
++static int dev_change_state(struct fp_img_dev *idev, enum fp_imgdev_state state)
++{
++	switch(state) {
++		case IMGDEV_STATE_INACTIVE:
++			printf("State change: IMGDEV_STATE_INACTIVE\n");
++			break;
++		case IMGDEV_STATE_AWAIT_FINGER_ON:
++			printf("State change: IMGDEV_STATE_AWAIT_FINGER_ON\n");
++			break;
++		case IMGDEV_STATE_CAPTURE:
++			printf("State change: IMGDEV_STATE_CAPTURE\n");
++			break;
++		case IMGDEV_STATE_AWAIT_FINGER_OFF:
++			printf("State change: IMGDEV_STATE_AWAIT_FINGER_OFF\n");
++			break;
++	}
++
++	return 0;
++}
++
++static void send_deactivate_sequence(struct fp_img_dev *idev, struct fpi_ssm *ssm, int sequence)
++{
++	do_data_exchange(idev, ssm, &DEACTIVATE_SEQUENCES[sequence], DATA_EXCHANGE_ENCRYPTED);
++}
++
++static void deactivate_ssm(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	switch (fpi_ssm_get_cur_state(ssm)) {
++	case DEACTIVATE_STOP_TRANSFER:
++		g_clear_pointer(&vdev->timeout, fpi_timeout_cancel);
++
++		if (vdev->transfer) {
++			/* Ignoring further callbacks, not ideal but safer */
++			vdev->transfer->callback = NULL;
++			g_clear_pointer(&vdev->transfer, libusb_cancel_transfer);
++		}
++
++		fpi_ssm_next_state(ssm);
++		break;
++
++	case DEACTIVATE_STATE_SEQ_1:
++	case DEACTIVATE_STATE_SEQ_2:
++		send_deactivate_sequence(idev, ssm, fpi_ssm_get_cur_state(ssm) - DEACTIVATE_STATE_SEQ_1);
++		break;
++
++	case DEACTIVATE_STATE_LED_OFF:
++		async_data_exchange(idev, DATA_EXCHANGE_ENCRYPTED,
++				    LED_OFF, G_N_ELEMENTS(LED_OFF),
++				    vdev->buffer, VFS_USB_BUFFER_SIZE,
++				    async_transfer_callback_with_ssm, ssm);
++		break;
++
++	default:
++		fp_err("Unknown state");
++		fpi_imgdev_session_error(idev, -EIO);
++		fpi_ssm_mark_failed(ssm, -EIO);
++	}
++}
++
++static void dev_deactivate_callback(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++
++	if (fpi_ssm_get_error(ssm)) {
++		fp_err("Deactivation failed failed at state %d, unexpected "
++		       "device reply during deactivation", fpi_ssm_get_cur_state(ssm));
++		fpi_imgdev_session_error(idev, fpi_ssm_get_error(ssm));
++	}
++
++	g_clear_pointer(&vdev->buffer, g_free);
++	vdev->buffer_length = 0;
++
++	fpi_imgdev_deactivate_complete(idev);
++
++	fpi_ssm_free(ssm);
++}
++
++static void dev_deactivate(struct fp_img_dev *idev)
++{
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	struct fpi_ssm *ssm;
++
++	g_clear_pointer(&vdev->timeout, fpi_timeout_cancel);
++	g_clear_pointer(&vdev->buffer, g_free);
++
++	vdev->buffer = g_malloc(VFS_USB_BUFFER_SIZE);
++	vdev->buffer_length = 0;
++
++	ssm = fpi_ssm_new(FP_DEV(idev), deactivate_ssm, DEACTIVATE_STATE_LAST, NULL);
++	fpi_ssm_start(ssm, dev_deactivate_callback);
++}
++
++static void reactivate_ssm(struct fpi_ssm *ssm, struct fp_dev *dev, void *data)
++{
++	struct fp_img_dev *idev = FP_IMG_DEV(dev);
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	struct fpi_ssm *child_ssm = NULL;
++
++	switch (fpi_ssm_get_cur_state(ssm)) {
++	case REACTIVATE_STATE_WAIT:
++		g_clear_pointer(&vdev->timeout, fpi_timeout_cancel);
++		vdev->timeout =
++			fpi_timeout_add(100, timeout_fpi_ssm_next_state, dev, ssm);
++		break;
++	case REACTIVATE_STATE_DEACTIVATE:
++		child_ssm = fpi_ssm_new(FP_DEV(idev), deactivate_ssm, DEACTIVATE_STATE_LAST, NULL);
++		break;
++	case REACTIVATE_STATE_ACTIVATE:
++		child_ssm = fpi_ssm_new(FP_DEV(idev), activate_ssm, ACTIVATE_STATE_LAST, NULL);
++		break;
++	default:
++		fp_err("Unknown reactivate state");
++		fpi_imgdev_session_error(idev, -EIO);
++		fpi_ssm_mark_failed(ssm, -EIO);
++	}
++
++	if (child_ssm)
++		fpi_ssm_start_subsm(ssm, child_ssm);
++}
++
++static void start_reactivate_subsm(struct fp_img_dev *idev, struct fpi_ssm *parent_ssm)
++{
++	struct fpi_ssm *ssm;
++
++	ssm = fpi_ssm_new(FP_DEV(idev), reactivate_ssm, REACTIVATE_STATE_LAST, NULL);
++	fpi_ssm_start_subsm(parent_ssm, ssm);
++}
++
++static void dev_close(struct fp_img_dev *idev)
++{
++	struct vfs_dev_t *vdev = VFS_DEV_FROM_IMG(idev);
++	libusb_device_handle *udev = fpi_dev_get_usb_dev(FP_DEV(idev));
++
++	usb_operation(libusb_release_interface(udev, 0), NULL);
++
++	NSS_Shutdown();
++	ERR_free_strings();
++	EVP_cleanup();
++
++	g_clear_pointer(&vdev->buffer, g_free);
++	vdev->buffer_length = 0;
++
++	g_free(vdev);
++	fpi_imgdev_close_complete(idev);
++}
++
++/* Usb id table of device */
++static const struct usb_id id_table[] = {
++	{ .vendor = 0x138a, .product = 0x0090 },
++	{ 0, 0, 0, },
++};
++
++/* Device driver definition */
++struct fp_img_driver vfs0090_driver = {
++	/* Driver specification */
++	.driver = {
++		.id = VFS0090_ID,
++		.name = FP_COMPONENT,
++		.full_name = "Validity VFS0090",
++		.id_table = id_table,
++		.scan_type = FP_SCAN_TYPE_PRESS,
++	},
++
++	/* Image specification */
++	.flags = 0,
++	.img_width = VFS_IMAGE_SIZE * VFS_IMAGE_RESCALE,
++	.img_height = VFS_IMAGE_SIZE * VFS_IMAGE_RESCALE,
++	.bz3_threshold = 12,
++
++	/* Routine specification */
++	.open = dev_open,
++	.close = dev_close,
++	.activate = dev_activate,
++	.change_state = dev_change_state,
++	.deactivate = dev_deactivate,
++};
+diff --git a/libfprint/drivers/vfs0090.h b/libfprint/drivers/vfs0090.h
+new file mode 100644
+index 0000000..41f5386
+--- /dev/null
++++ b/libfprint/drivers/vfs0090.h
+@@ -0,0 +1,779 @@
++/*
++ * Validity VFS0090 driver for libfprint
++ * Copyright (C) 2017 Nikita Mikhailov <nikita.s.mikhailov@gmail.com>
++ * Copyright (C) 2018 Marco Trevisan <marco@ubuntu.com>
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#include <glib.h>
++
++#define DMI_PRODUCT_NAME_NODE "/sys/class/dmi/id/product_name"
++#define DMI_PRODUCT_SERIAL_NODE "/sys/class/dmi/id/product_serial"
++
++#define VFS_USB_TIMEOUT 3000
++#define VFS_USB_INTERRUPT_TIMEOUT 0
++#define VFS_USB_BUFFER_SIZE 15 * 1024
++#define VFS_USB_INTERRUPT_BUFFER_SIZE 0x100
++
++#define VFS_MASTER_KEY_SIZE 0x20
++#define VFS_PUBLIC_KEY_SIZE 0x40
++#define VFS_ECDSA_PRIVATE_KEY_SIZE 0x60
++#define VFS_ECDSA_SIGNATURE_SIZE 0x48
++#define VFS_IMAGE_SIZE 144
++#define VFS_IMAGE_RESCALE 2
++
++enum INIT_STATES {
++	INIT_STATE_GENERATE_MAIN_SEED,
++	INIT_STATE_SEQ_1,
++	INIT_STATE_SEQ_2,
++	INIT_STATE_SEQ_3,
++	INIT_STATE_SEQ_4,
++	INIT_STATE_SEQ_5,
++	INIT_STATE_SEQ_6,
++	INIT_STATE_MASTER_KEY,
++	INIT_STATE_ECDSA_KEY,
++	INIT_STATE_TLS_CERT,
++	INIT_STATE_PUBLIC_KEY,
++	INIT_STATE_HANDSHAKE,
++
++	INIT_STATE_LAST
++};
++
++enum TLS_HANDSHAKE_STATES {
++	TLS_HANDSHAKE_STATE_CLIENT_HELLO,
++	TLS_HANDSHAKE_STATE_SERVER_HELLO_RCV,
++	TLS_HANDSHAKE_GENERATE_CERT,
++	TLS_HANDSHAKE_STATE_SEND_CERT,
++	TLS_HANDSHAKE_STATE_CERT_REPLY,
++
++	TLS_HANDSHAKE_STATE_LAST
++};
++
++enum ACTIVATE_STATES {
++	ACTIVATE_STATE_GREEN_LED_ON,
++	ACTIVATE_STATE_SEQ_1,
++	ACTIVATE_STATE_SEQ_2,
++	ACTIVATE_STATE_SEQ_3,
++	ACTIVATE_STATE_SEQ_4,
++	ACTIVATE_STATE_SEQ_5,
++	ACTIVATE_STATE_SEQ_6,
++	ACTIVATE_STATE_SEQ_7,
++	ACTIVATE_STATE_SCAN_MATRIX,
++	ACTIVATE_STATE_WAIT_DEVICE,
++
++	ACTIVATE_STATE_LAST
++};
++
++/* Keep this in Sync with VFS_SCAN_INTERRUPTS */
++enum SCAN_STATES {
++	SCAN_STATE_WAITING_FOR_FINGER,
++	SCAN_STATE_FINGER_ON_SENSOR,
++	SCAN_STATE_IN_PROGRESS,
++	SCAN_STATE_FAILED_TOO_SHORT,
++	SCAN_STATE_FAILED_TOO_FAST,
++	SCAN_STATE_COMPLETED,
++	SCAN_STATE_SUCCESS,
++	SCAN_STATE_SUCCESS_LOW_QUALITY,
++
++	SCAN_STATE_LAST
++};
++
++/* Keep in sync with SCAN_STATES */
++enum VFS_SCAN_INTERRUPTS {
++	VFS_SCAN_WAITING_FOR_FINGER = SCAN_STATE_WAITING_FOR_FINGER,
++	VFS_SCAN_FINGER_ON_SENSOR,
++	VFS_SCAN_IN_PROGRESS,
++	VFS_SCAN_FAILED_TOO_SHORT,
++	VFS_SCAN_FAILED_TOO_FAST,
++	VFS_SCAN_COMPLETED,
++	VFS_SCAN_SUCCESS,
++	VFS_SCAN_SUCCESS_LOW_QUALITY,
++	VFS_SCAN_UNKNOWN = 100,
++};
++
++enum SCAN_ERROR_STATES {
++	SCAN_ERROR_STATE_LED_BLINK,
++	SCAN_ERROR_STATE_REACTIVATE_REQUEST,
++
++	SCAN_ERROR_STATE_LAST
++};
++
++enum IMAGE_DOWNLOAD_STATES {
++	IMAGE_DOWNLOAD_STATE_1,
++	IMAGE_DOWNLOAD_STATE_2,
++	IMAGE_DOWNLOAD_STATE_3,
++	IMAGE_DOWNLOAD_STATE_SUBMIT,
++	IMAGE_DOWNLOAD_STATE_GREEN_LED_BLINK,
++	IMAGE_DOWNLOAD_STATE_AFTER_GREEN_LED_BLINK,
++	IMAGE_DOWNLOAD_STATE_RED_LED_BLINK,
++	IMAGE_DOWNLOAD_STATE_AFTER_RED_LED_BLINK,
++	IMAGE_DOWNLOAD_STATE_SUBMIT_RESULT,
++
++	IMAGE_DOWNLOAD_STATE_LAST
++};
++
++enum DEACTIVATE_STATES {
++	DEACTIVATE_STOP_TRANSFER,
++	DEACTIVATE_STATE_SEQ_1,
++	DEACTIVATE_STATE_SEQ_2,
++	DEACTIVATE_STATE_LED_OFF,
++
++	DEACTIVATE_STATE_LAST
++};
++
++enum REACTIVATE_STATES {
++	REACTIVATE_STATE_WAIT,
++	REACTIVATE_STATE_DEACTIVATE,
++	REACTIVATE_STATE_ACTIVATE,
++
++	REACTIVATE_STATE_LAST
++};
++
++enum VFS_READ_MODE {
++	VFS_READ_BULK,
++	VFS_READ_INTERRUPT,
++};
++
++enum DATA_EXCHANGE_MODE {
++	DATA_EXCHANGE_PLAIN,
++	DATA_EXCHANGE_ENCRYPTED,
++};
++
++struct data_exchange_t {
++	gboolean             weak_match;
++	const unsigned char *msg;
++	int                  msg_length;
++	const unsigned char *rsp;
++	int                  rsp_length;
++};
++
++const unsigned char TEST_SEED[] = "VirtualBox\0" "0";
++
++static const unsigned char INIT_SEQUENCE_MSG1[] = { 0x01 };
++
++static const unsigned char INIT_SEQUENCE_MSG2[] = { 0x19 };
++
++static const unsigned char INIT_SEQUENCE_MSG3[] = { 0x43, 0x02 };
++
++static const unsigned char INIT_SEQUENCE_MSG4[] = {
++	0x06, 0x02, 0x00, 0x00, 0x01, 0x39, 0x17, 0xb3,
++	0xdd, 0xa9, 0x13, 0x83, 0xb5, 0xbc, 0xac, 0x64,
++	0xfa, 0x4a, 0xd3, 0x5d, 0xce, 0x96, 0x57, 0x0a,
++	0x9d, 0x2d, 0x97, 0x4b, 0x80, 0x92, 0x6a, 0x43,
++	0x1f, 0x9c, 0xd4, 0x62, 0x48, 0x98, 0x0a, 0x26,
++	0x3c, 0x6f, 0xce, 0xf6, 0xa8, 0x28, 0x39, 0xa9,
++	0x0b, 0x59, 0xac, 0x59, 0x08, 0x48, 0x85, 0x9a,
++	0xfa, 0xc8, 0x17, 0xb7, 0xd5, 0x3b, 0xf5, 0x1c,
++	0xd3, 0x20, 0x5c, 0x1b, 0x8f, 0x43, 0x04, 0x8b,
++	0xe8, 0x25, 0x3c, 0x3b, 0xd2, 0x47, 0x93, 0x7c,
++	0x83, 0x7a, 0xca, 0x8b, 0x18, 0xd3, 0xcc, 0x8e,
++	0xe8, 0xc8, 0x97, 0x1a, 0xc4, 0xf6, 0x88, 0x81,
++	0x3c, 0xf3, 0xd8, 0x55, 0x0d, 0x71, 0x49, 0x69,
++	0x85, 0xb7, 0xec, 0x07, 0xff, 0x2d, 0xc7, 0x89,
++	0x6d, 0x33, 0x0f, 0xda, 0xb2, 0x63, 0xa0, 0xee,
++	0x43, 0x3a, 0x5c, 0x4b, 0xc9, 0x10, 0x43, 0x9d,
++	0x1c, 0x61, 0x61, 0x85, 0x3f, 0xeb, 0x03, 0xf5,
++	0x50, 0x22, 0x09, 0x50, 0x2e, 0x73, 0x08, 0xbe,
++	0xb7, 0x91, 0x94, 0x73, 0xcf, 0xe6, 0x9f, 0x42,
++	0x2c, 0x30, 0x50, 0x2d, 0x22, 0x6a, 0x4d, 0x0a,
++	0x34, 0xd9, 0x6c, 0x8c, 0x77, 0x95, 0x6c, 0xf6,
++	0x9d, 0xb8, 0xef, 0x6c, 0xf9, 0x27, 0xa3, 0xb5,
++	0x78, 0x49, 0xd4, 0xaa, 0x8a, 0xd4, 0xb4, 0x42,
++	0x66, 0x92, 0x3e, 0x34, 0xb8, 0x2a, 0x39, 0xc8,
++	0x14, 0x6b, 0xa3, 0xcd, 0x70, 0x8c, 0x70, 0xdf,
++	0xed, 0xb5, 0x0c, 0x2d, 0xe6, 0x1f, 0xeb, 0x45,
++	0xb1, 0xd4, 0xf1, 0x95, 0x84, 0x29, 0x72, 0x03,
++	0xf5, 0xfd, 0xc8, 0x65, 0x79, 0x5f, 0xec, 0x9d,
++	0x64, 0x49, 0xf3, 0xba, 0x9b, 0x6f, 0x1e, 0x4b,
++	0xed, 0x69, 0x8e, 0xe1, 0x51, 0xe8, 0x3d, 0x4d,
++	0x87, 0x02, 0xf7, 0x6a, 0x40, 0x06, 0xcf, 0xa2,
++	0x4d, 0x9b, 0x79, 0x78, 0x88, 0x20, 0x3b, 0x22,
++	0x69, 0xf8, 0xa7, 0x7d, 0x52, 0x40, 0x34, 0xac,
++	0x32, 0xe4, 0xaf, 0x58, 0xb8, 0x6e, 0xbc, 0x63,
++	0x55, 0x2c, 0xb3, 0x5b, 0x12, 0xb2, 0x85, 0x25,
++	0x5d, 0xea, 0xf3, 0xa3, 0x2b, 0xf4, 0x6c, 0xdc,
++	0x5a, 0xd3, 0xbc, 0x1c, 0x9e, 0xd1, 0xbc, 0xc1,
++	0x12, 0xc7, 0x21, 0x43, 0xf9, 0xae, 0xc5, 0x68,
++	0xe2, 0xca, 0xcf, 0xa8, 0x9b, 0xa0, 0xc7, 0xbb,
++	0x65, 0x59, 0x0d, 0x8b, 0x93, 0xe6, 0x87, 0x1a,
++	0x33, 0xc6, 0xc6, 0x98, 0x3c, 0x0a, 0xcd, 0x04,
++	0xe7, 0x37, 0xff, 0x55, 0xee, 0xe0, 0x24, 0xca,
++	0x6b, 0x9a, 0x48, 0x33, 0x2c, 0x1a, 0x69, 0xa5,
++	0xa3, 0xfd, 0xd2, 0x4b, 0x96, 0x4c, 0xf7, 0xe7,
++	0xc5, 0x52, 0x29, 0xbb, 0x0b, 0x48, 0xa6, 0xe3,
++	0x39, 0xeb, 0x2c, 0x42, 0xd0, 0x7e, 0xc8, 0x50,
++	0xa4, 0xee, 0x78, 0x06, 0x60, 0xad, 0x6c, 0x77,
++	0xff, 0xa3, 0x02, 0xa6, 0x3b, 0xd1, 0x94, 0x26,
++	0x13, 0x4c, 0x45, 0x33, 0xd6, 0xf9, 0x67, 0x44,
++	0x11, 0x63, 0xfb, 0x78, 0xb7, 0x35, 0x47, 0xc6,
++	0x8a, 0x49, 0x3b, 0x2f, 0x80, 0x0d, 0x3c, 0xda,
++	0xb8, 0x27, 0xb1, 0x16, 0x76, 0x27, 0x89, 0x99,
++	0x2a, 0xae, 0x3c, 0x8a, 0xb3, 0x45, 0xa4, 0x9e,
++	0xdd, 0x31, 0x2d, 0xfd, 0x2a, 0x27, 0xbc, 0x50,
++	0x14, 0x27, 0xdc, 0x7f, 0xa0, 0x0a, 0xc3, 0xc5,
++	0xc3, 0x65, 0x51, 0xdb, 0xb3, 0xd5, 0xca, 0xd8,
++	0xd5, 0xbd, 0x7c, 0xea, 0x37, 0xe5, 0x8a, 0x31,
++	0x30, 0x7a, 0x6d, 0x50, 0xe6, 0xae, 0x37, 0x9a,
++	0x53, 0xf1, 0x36, 0x66, 0x78, 0xc0, 0x74, 0x1a,
++	0x3d, 0x87, 0x2b, 0x8d, 0xcf, 0xef, 0xa7, 0xf6,
++	0x31, 0x28, 0xdc, 0x82, 0x45
++};
++
++static const unsigned char INIT_SEQUENCE_MSG5[] = { 0x3e };
++
++static const unsigned char INIT_SEQUENCE_RSP5[] = {
++	0x00, 0x00, 0xef, 0x00, 0x40, 0x00, 0x00, 0x10,
++	0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x05, 0x00,
++	0x01, 0x04, 0x07, 0x00, 0x00, 0x10, 0x00, 0x00,
++	0x00, 0x10, 0x00, 0x00, 0x02, 0x01, 0x02, 0x00,
++	0x00, 0x20, 0x00, 0x00, 0x00, 0xe0, 0x03, 0x00,
++	0x05, 0x05, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00,
++	0x00, 0x80, 0x00, 0x00, 0x06, 0x06, 0x03, 0x00,
++	0x00, 0x80, 0x04, 0x00, 0x00, 0x80, 0x00, 0x00,
++	0x04, 0x03, 0x05, 0x00, 0x00, 0x00, 0x05, 0x00,
++	0x00, 0x00, 0x03, 0x00
++};
++
++static const unsigned char INIT_SEQUENCE_MSG6[] = {
++	0x40, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x10, 0x00, 0x00
++};
++
++static const struct data_exchange_t INIT_SEQUENCES[] = {
++	{
++		.msg = INIT_SEQUENCE_MSG1,
++		.msg_length = G_N_ELEMENTS(INIT_SEQUENCE_MSG1),
++		.rsp = NULL,
++		.rsp_length = -1 /* 38 normally */,
++	},
++	{
++		.msg = INIT_SEQUENCE_MSG2,
++		.msg_length = G_N_ELEMENTS(INIT_SEQUENCE_MSG2),
++		.rsp = NULL,
++		.rsp_length = 68,
++	},
++	{
++		.msg = INIT_SEQUENCE_MSG3,
++		.msg_length = G_N_ELEMENTS(INIT_SEQUENCE_MSG3),
++		.rsp = NULL,
++		.rsp_length = 84,
++	},
++	{
++		.msg = INIT_SEQUENCE_MSG4,
++		.msg_length = G_N_ELEMENTS(INIT_SEQUENCE_MSG4),
++		.rsp = NULL,
++		.rsp_length = 2,
++	},
++	{
++		.msg = INIT_SEQUENCE_MSG5,
++		.msg_length = G_N_ELEMENTS(INIT_SEQUENCE_MSG5),
++		.rsp = INIT_SEQUENCE_RSP5,
++		.rsp_length = G_N_ELEMENTS(INIT_SEQUENCE_RSP5),
++	},
++	{
++		.msg = INIT_SEQUENCE_MSG6,
++		.msg_length = G_N_ELEMENTS(INIT_SEQUENCE_MSG6),
++		.rsp = NULL,
++		.rsp_length = -1,
++	},
++};
++
++static const unsigned char PRE_KEY[] = {
++	0x71, 0x7c, 0xd7, 0x2d, 0x09, 0x62, 0xbc, 0x4a,
++	0x28, 0x46, 0x13, 0x8d, 0xbb, 0x2c, 0x24, 0x19,
++	0x25, 0x12, 0xa7, 0x64, 0x07, 0x06, 0x5f, 0x38,
++	0x38, 0x46, 0x13, 0x9d, 0x4b, 0xec, 0x20, 0x33,
++};
++
++static const unsigned char TLS_CERTIFICATE_BASE[] = {
++	0x44, 0x00, 0x00, 0x00,
++	0x16, 0x03, 0x03, 0x01, 0x55,
++
++	0x0b, 0x00, 0x00,
++	0xc0, 0x00, 0x00, 0xb8, 0x00, 0x00, 0xb8,
++
++	0x00, 0x00,
++
++	/* cert from pre-tls */
++	0x17, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00,
++	0x00, 0xab, 0x9d, 0xfd, 0xba, 0x74, 0x25, 0x29,
++	0x93, 0x9d, 0x2d, 0x5d, 0xf4, 0x77, 0xec, 0x90,
++	0x2e, 0x13, 0xb8, 0x21, 0x1a, 0x19, 0x70, 0x1e,
++	0x50, 0x2f, 0xf5, 0x6e, 0x6e, 0x25, 0xae, 0x8c,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0xdd, 0xf4, 0x04,
++	0x74, 0xf0, 0x7a, 0xe4, 0xe0, 0x79, 0xd1, 0xf1,
++	0x9f, 0xae, 0xbd, 0xa8, 0xef, 0x1e, 0xfa, 0x18,
++	0xc2, 0x6a, 0x76, 0xae, 0xa5, 0xaa, 0xbf, 0xc3,
++	0x4f, 0x12, 0x94, 0x8c, 0x8f, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0xa5, 0x58, 0xed, 0x0f, 0x31, 0x33, 0x45,
++	0x63, 0xc8, 0x8a, 0xd5, 0x53, 0xd9, 0xe4, 0x6e,
++	0x20, 0x5d, 0x54, 0x3b, 0x83, 0x99, 0xcf, 0x9b,
++	0xef, 0x9e, 0xa8, 0xaa, 0xc5, 0xeb, 0xfb, 0x21,
++	0xa3,
++
++	0x10, 0x00, 0x00, 0x41, 0x04, 0x1d, 0xd8,
++	0x36, 0x68, 0xe9, 0xb0, 0x7b, 0x93, 0x12, 0x38,
++	0x31, 0x23, 0x90, 0xc8, 0x87, 0xca, 0xdb, 0x82,
++	0x27, 0x39, 0xde, 0x7b, 0x43, 0xd2, 0x23, 0xd7,
++	0xcd, 0xd1, 0x3c, 0x77, 0x0e, 0xd2, 0xd1, 0x93,
++	0x70, 0x02, 0xaf, 0x3b, 0x18, 0x47, 0xc5, 0x30,
++	0x4c, 0x33, 0x60, 0xcf, 0xbf, 0xc5, 0x9b, 0x3c,
++	0x67, 0xd9, 0x45, 0x06, 0x38, 0xda, 0x92, 0xbe,
++	0x65, 0xbf, 0x81, 0x8c, 0xaa, 0x7e, 0x0f, 0x00,
++	0x00, 0x48, 0x30, 0x46, 0x02, 0x21, 0x00, 0xa3,
++	0xad, 0xaa, 0x61, 0x00, 0xe6, 0x9d, 0xbd, 0xcf,
++	0x48, 0x73, 0xb7, 0xa6, 0xed, 0xe3, 0x62, 0x0a,
++	0x79, 0xe4, 0xf8, 0x14, 0x27, 0x4d, 0xeb, 0x73,
++	0x91, 0x01, 0x0c, 0xae, 0x08, 0xb9, 0x43, 0x02,
++	0x21, 0x00, 0xd3, 0x28, 0xa4, 0x86, 0xcf, 0x8b,
++	0xaf, 0x35, 0xc9, 0x04, 0xf7, 0x1f, 0xe2, 0x56,
++	0x22, 0xf7, 0x5d, 0xdf, 0x53, 0x13, 0x4f, 0xc6,
++	0xdb, 0x6b, 0xc0, 0x0d, 0x57, 0x90, 0xc4, 0x23,
++	0xfe, 0x06, 0x14, 0x03, 0x03, 0x00, 0x01, 0x01,
++
++
++	/* encrypted handshake */
++	0x16, 0x03, 0x03, 0x00, 0x50,
++
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++
++	0x6f, 0xda, 0xdb,
++	0xa0, 0x35, 0x1b, 0xe1, 0xb9, 0xca, 0xa3, 0x90,
++	0xdf, 0x7e, 0x17, 0xec, 0x0b, 0xe8, 0xcc, 0xf9,
++	0xa4, 0x92, 0x1b, 0x77, 0x9c, 0x0f, 0xf3, 0xc6,
++	0xdc, 0xf9, 0xb3, 0x7d, 0x3c, 0x41, 0x6c, 0x4c,
++	0x80, 0x95, 0x66, 0x7e, 0xb1, 0x7e, 0x37, 0x3d,
++	0x28, 0xef, 0xa4, 0xca, 0xfd, 0x3e, 0xfd, 0x8f,
++	0xdd, 0x84, 0x10, 0xc5, 0xb2, 0x71, 0x38, 0xab,
++	0x8d, 0x9c, 0xe3, 0xac, 0x46
++};
++
++static const unsigned char TLS_CLIENT_HELLO[] = {
++	0x44, 0x00, 0x00, 0x00,
++	0x16, 0x03, 0x03, 0x00, 0x43, 0x01, 0x00, 0x00,
++	0x3f, 0x03, 0x03, 0x95, 0x6c, 0x41, 0xa9, 0x12,
++	0x86, 0x8a, 0xda, 0x9b, 0xb2, 0x5b, 0xb4, 0xbb,
++	0xd6, 0x1d, 0xde, 0x4f, 0xda, 0x23, 0x2a, 0x74,
++	0x7b, 0x2a, 0x93, 0xf8, 0xac, 0xc6, 0x69, 0x24,
++	0x70, 0xc4, 0x2a, 0x07, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x04, 0xc0, 0x05, 0x00,
++	0x3d, 0x00, 0x00, 0x0a, 0x00, 0x04, 0x00, 0x02,
++	0x00, 0x17, 0x00, 0x0b, 0x00, 0x02, 0x01, 0x00
++};
++
++static const unsigned char PRIVKEY[] = {
++	0x1d, 0xd8, 0x36, 0x68, 0xe9, 0xb0, 0x7b, 0x93,
++	0x12, 0x38, 0x31, 0x23, 0x90, 0xc8, 0x87, 0xca,
++	0xdb, 0x82, 0x27, 0x39, 0xde, 0x7b, 0x43, 0xd2,
++	0x23, 0xd7, 0xcd, 0xd1, 0x3c, 0x77, 0x0e, 0xd2,
++
++	0xd1, 0x93, 0x70, 0x02, 0xaf, 0x3b, 0x18, 0x47,
++	0xc5, 0x30, 0x4c, 0x33, 0x60, 0xcf, 0xbf, 0xc5,
++	0x9b, 0x3c, 0x67, 0xd9, 0x45, 0x06, 0x38, 0xda,
++	0x92, 0xbe, 0x65, 0xbf, 0x81, 0x8c, 0xaa, 0x7e,
++
++	0x20, 0x14, 0x3b, 0x7b, 0x62, 0x64, 0x90, 0x07,
++	0x54, 0x4e, 0x7a, 0x98, 0xf9, 0x81, 0xbe, 0xc1,
++	0xf2, 0x1f, 0x9a, 0x29, 0x65, 0xb6, 0xcc, 0x29,
++	0x0c, 0x45, 0xd3, 0x87, 0xae, 0xbf, 0xa4, 0xd9
++};
++
++static const unsigned char ACTIVATE_SEQUENCE_MSG1[] = {
++	0x08, 0x5c, 0x20, 0x00, 0x80, 0x07, 0x00, 0x00,
++	0x00, 0x04
++};
++
++static const unsigned char ACTIVATE_SEQUENCE_MSG2[] = {
++	0x07, 0x80, 0x20, 0x00, 0x80, 0x04
++};
++
++static const unsigned char ACTIVATE_SEQUENCE_MSG345[] = {
++	0x75
++};
++static const unsigned char ACTIVATE_SEQUENCE_RSP345[] = {
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
++	0x71, 0x00                       /* 0x01 */
++};
++
++static const unsigned char ACTIVATE_SEQUENCE_MSG67[] = {
++	0x43, 0x02
++};
++
++unsigned char SCAN_MATRIX[] = {
++	0x02, 0x98, 0x00, 0x00, 0x00, 0x23, 0x00, 0x00,
++	0x00, 0x20, 0x00, 0x08, 0x00, 0x00, 0x20, 0x00,
++	0x80, 0x00, 0x00, 0x01, 0x00, 0x32, 0x00, 0x70,
++	0x00, 0x00, 0x00, 0x00, 0x80, 0x20, 0x20, 0x05,
++	0x00, 0x24, 0x20, 0x00, 0x00, 0x50, 0x20, 0x77,
++	0x36, 0x28, 0x20, 0x01, 0x00, 0x30, 0x20, 0x01,
++	0x00, 0x08, 0x21, 0x70, 0x00, 0x0c, 0x21, 0x00,
++	0x00, 0x48, 0x21, 0x02, 0x00, 0x4c, 0x21, 0x00,
++	0x00, 0x58, 0x20, 0x00, 0x00, 0x5c, 0x20, 0x00,
++	0x00, 0x60, 0x20, 0x00, 0x00, 0x68, 0x20, 0x05,
++	0x00, 0x6c, 0x20, 0x01, 0x29, 0x70, 0x20, 0x01,
++	0x21, 0x74, 0x20, 0x01, 0x88, 0x78, 0x20, 0x01,
++	0x80, 0x84, 0x20, 0x20, 0x00, 0x94, 0x20, 0x01,
++	0x80, 0x9c, 0x20, 0x09, 0x02, 0xa0, 0x20, 0x0b,
++	0x19, 0xb4, 0x20, 0x00, 0x00, 0xb8, 0x20, 0x3b,
++	0x04, 0xbc, 0x20, 0x14, 0x00, 0xc0, 0x20, 0x02,
++	0x00, 0xc4, 0x20, 0x01, 0x00, 0xc8, 0x20, 0x02,
++	0x00, 0x33, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
++	0x80, 0xcc, 0x20, 0x00, 0x00, 0xf5, 0x03, 0xd0,
++	0x20, 0x00, 0x00, 0xa1, 0x01, 0x32, 0x00, 0x44,
++	0x00, 0x00, 0x00, 0x00, 0x80, 0xdc, 0x20, 0xe8,
++	0x03, 0xe0, 0x20, 0x64, 0x01, 0xe4, 0x20, 0xd0,
++	0x02, 0xe8, 0x20, 0x00, 0x01, 0xf0, 0x20, 0x05,
++	0x00, 0xf8, 0x20, 0x05, 0x00, 0xfc, 0x20, 0x00,
++	0x00, 0xb8, 0x20, 0x3b, 0x00, 0x00, 0x08, 0x04,
++	0x00, 0x14, 0x08, 0x00, 0x00, 0x08, 0x08, 0x00,
++	0x00, 0x08, 0x08, 0x00, 0x00, 0x14, 0x08, 0x30,
++	0x00, 0x08, 0x08, 0x00, 0x00, 0x14, 0x08, 0x31,
++	0x00, 0x1c, 0x08, 0x1a, 0x00, 0x32, 0x00, 0x0c,
++	0x00, 0x00, 0x00, 0x00, 0x80, 0x50, 0x11, 0x01,
++	0x00, 0x4c, 0x11, 0x26, 0x00, 0x34, 0x00, 0x08,
++	0x03, 0x10, 0x07, 0x1d, 0x10, 0x07, 0x1d, 0x10,
++	0x07, 0x1d, 0x10, 0x07, 0x1d, 0x10, 0x07, 0x1c,
++	0x01, 0x06, 0x58, 0x10, 0x08, 0x01, 0x01, 0x00,
++	0x00, 0x07, 0xc8, 0x07, 0x8c, 0x06, 0x10, 0x00,
++	0x00, 0x20, 0x4f, 0x80, 0x00, 0x7f, 0x00, 0x00,
++	0x03, 0x07, 0x01, 0x07, 0x01, 0x0c, 0x07, 0x03,
++	0x2c, 0x08, 0xfc, 0x80, 0x09, 0x5a, 0x80, 0x0a,
++	0xfc, 0x08, 0xfb, 0x80, 0x0b, 0x5a, 0x09, 0x5b,
++	0x80, 0x0a, 0xfb, 0x08, 0xfa, 0x80, 0x0b, 0x5b,
++	0x09, 0x5c, 0x80, 0x0a, 0xfa, 0x08, 0xf9, 0x80,
++	0x0b, 0x5c, 0x09, 0x5d, 0x80, 0x0a, 0xf9, 0x08,
++	0xf8, 0x80, 0x0b, 0x5d, 0x09, 0x5e, 0x80, 0x0a,
++	0xf8, 0x08, 0xf7, 0x80, 0x0b, 0x5e, 0x09, 0x5f,
++	0x80, 0x0a, 0xf7, 0x08, 0xf6, 0x80, 0x0b, 0x5f,
++	0x09, 0x60, 0x80, 0x0a, 0xf6, 0x08, 0xf5, 0x80,
++	0x0b, 0x60, 0x09, 0x61, 0x80, 0x0a, 0xf5, 0x08,
++	0xf4, 0x80, 0x0b, 0x61, 0x09, 0x62, 0x80, 0x0a,
++	0xf4, 0x08, 0xf3, 0x80, 0x0b, 0x62, 0x09, 0x63,
++	0x80, 0x0a, 0xf3, 0x08, 0xf2, 0x80, 0x0b, 0x63,
++	0x09, 0x64, 0x80, 0x0a, 0xf2, 0x08, 0xf1, 0x80,
++	0x0b, 0x64, 0x09, 0x65, 0x80, 0x0a, 0xf1, 0x08,
++	0xf0, 0x80, 0x0b, 0x65, 0x09, 0x66, 0x80, 0x0a,
++	0xf0, 0x08, 0xef, 0x80, 0x0b, 0x66, 0x09, 0x67,
++	0x80, 0x0a, 0xef, 0x08, 0xee, 0x80, 0x0b, 0x67,
++	0x09, 0x68, 0x80, 0x0a, 0xee, 0x08, 0xed, 0x80,
++	0x0b, 0x68, 0x09, 0x6c, 0x80, 0x0a, 0xed, 0x08,
++	0xec, 0x80, 0x0b, 0x6c, 0x09, 0x6d, 0x80, 0x0a,
++	0xec, 0x08, 0xeb, 0x80, 0x0b, 0x6d, 0x09, 0x6e,
++	0x80, 0x0a, 0xeb, 0x08, 0xea, 0x80, 0x0b, 0x6e,
++	0x09, 0x6f, 0x80, 0x0a, 0xea, 0x08, 0xe9, 0x80,
++	0x0b, 0x6f, 0x09, 0x70, 0x80, 0x0a, 0xe9, 0x08,
++	0xe8, 0x80, 0x0b, 0x70, 0x09, 0x71, 0x80, 0x0a,
++	0xe8, 0x08, 0xe7, 0x80, 0x0b, 0x71, 0x09, 0x72,
++	0x80, 0x0a, 0xe7, 0x08, 0xe6, 0x80, 0x0b, 0x72,
++	0x09, 0x73, 0x80, 0x0a, 0xe6, 0x08, 0xe5, 0x80,
++	0x0b, 0x73, 0x09, 0x74, 0x80, 0x0a, 0xe5, 0x08,
++	0xe4, 0x80, 0x0b, 0x74, 0x09, 0x75, 0x80, 0x0a,
++	0xe4, 0x08, 0xe3, 0x80, 0x0b, 0x75, 0x09, 0x76,
++	0x80, 0x0a, 0xe3, 0x08, 0xe2, 0x80, 0x0b, 0x76,
++	0x09, 0x77, 0x80, 0x0a, 0xe2, 0x08, 0xe1, 0x80,
++	0x0b, 0x77, 0x09, 0x78, 0x80, 0x0a, 0xe1, 0x08,
++	0xe0, 0x80, 0x0b, 0x78, 0x09, 0x79, 0x80, 0x0a,
++	0xe0, 0x08, 0xdf, 0x80, 0x0b, 0x79, 0x09, 0x7a,
++	0x80, 0x0a, 0xdf, 0x08, 0xde, 0x80, 0x0b, 0x7a,
++	0x09, 0x7b, 0x80, 0x0a, 0xde, 0x08, 0xdd, 0x80,
++	0x0b, 0x7b, 0x09, 0x7c, 0x80, 0x0a, 0xdd, 0x08,
++	0xdc, 0x80, 0x0b, 0x7c, 0x09, 0x7d, 0x80, 0x0a,
++	0xdc, 0x08, 0xdb, 0x80, 0x0b, 0x7d, 0x09, 0x7e,
++	0x80, 0x0a, 0xdb, 0x08, 0xda, 0x80, 0x0b, 0x7e,
++	0x09, 0x7f, 0x80, 0x0a, 0xda, 0x08, 0xd9, 0x80,
++	0x0b, 0x7f, 0x09, 0x80, 0x80, 0x0a, 0xd9, 0x08,
++	0xd8, 0x80, 0x0b, 0x80, 0x09, 0x81, 0x80, 0x0a,
++	0xd8, 0x08, 0xd7, 0x80, 0x0b, 0x81, 0x09, 0x82,
++	0x80, 0x0a, 0xd7, 0x08, 0xd6, 0x80, 0x0b, 0x82,
++	0x09, 0x83, 0x80, 0x0a, 0xd6, 0x08, 0xd5, 0x80,
++	0x0b, 0x83, 0x09, 0x84, 0x80, 0x0a, 0xd5, 0x08,
++	0xd4, 0x80, 0x0b, 0x84, 0x09, 0x85, 0x80, 0x0a,
++	0xd4, 0x08, 0xd3, 0x80, 0x0b, 0x85, 0x09, 0x86,
++	0x80, 0x0a, 0xd3, 0x08, 0xd2, 0x80, 0x0b, 0x86,
++	0x09, 0x87, 0x80, 0x0a, 0xd2, 0x08, 0xd1, 0x80,
++	0x0b, 0x87, 0x09, 0x88, 0x80, 0x0a, 0xd1, 0x08,
++	0xd0, 0x80, 0x0b, 0x88, 0x09, 0x89, 0x80, 0x0a,
++	0xd0, 0x08, 0xcf, 0x80, 0x0b, 0x89, 0x09, 0x8a,
++	0x80, 0x0a, 0xcf, 0x08, 0xce, 0x80, 0x0b, 0x8a,
++	0x09, 0x8b, 0x80, 0x0a, 0xce, 0x08, 0xcd, 0x80,
++	0x0b, 0x8b, 0x09, 0x8c, 0x80, 0x0a, 0xcd, 0x08,
++	0xcc, 0x80, 0x0b, 0x8c, 0x09, 0x8d, 0x80, 0x0a,
++	0xcc, 0x08, 0xcb, 0x80, 0x0b, 0x8d, 0x09, 0x8e,
++	0x80, 0x0a, 0xcb, 0x08, 0xca, 0x80, 0x0b, 0x8e,
++	0x09, 0x8f, 0x80, 0x0a, 0xca, 0x08, 0xc9, 0x80,
++	0x0b, 0x8f, 0x09, 0x90, 0x80, 0x0a, 0xc9, 0x08,
++	0xc8, 0x80, 0x0b, 0x90, 0x09, 0x91, 0x80, 0x0a,
++	0xc8, 0x08, 0xc7, 0x80, 0x0b, 0x91, 0x09, 0x92,
++	0x80, 0x0a, 0xc7, 0x08, 0xc6, 0x80, 0x0b, 0x92,
++	0x09, 0x93, 0x80, 0x0a, 0xc6, 0x08, 0xc5, 0x80,
++	0x0b, 0x93, 0x09, 0x94, 0x80, 0x0a, 0xc5, 0x08,
++	0xc4, 0x80, 0x0b, 0x94, 0x09, 0x95, 0x80, 0x0a,
++	0xc4, 0x08, 0xc3, 0x80, 0x0b, 0x95, 0x09, 0x96,
++	0x80, 0x0a, 0xc3, 0x08, 0xc2, 0x80, 0x0b, 0x96,
++	0x09, 0x97, 0x80, 0x0a, 0xc2, 0x08, 0xc1, 0x80,
++	0x0b, 0x97, 0x09, 0x98, 0x80, 0x0a, 0xc1, 0x08,
++	0xc0, 0x80, 0x0b, 0x98, 0x09, 0x99, 0x80, 0x0a,
++	0xc0, 0x08, 0xbf, 0x80, 0x0b, 0x99, 0x09, 0x9a,
++	0x80, 0x0a, 0xbf, 0x08, 0xbe, 0x80, 0x0b, 0x9a,
++	0x09, 0x9b, 0x80, 0x0a, 0xbe, 0x08, 0xbd, 0x80,
++	0x0b, 0x9b, 0x09, 0x9c, 0x80, 0x0a, 0xbd, 0x08,
++	0xbc, 0x80, 0x0b, 0x9c, 0x09, 0x9d, 0x80, 0x0a,
++	0xbc, 0x08, 0xbb, 0x80, 0x0b, 0x9d, 0x09, 0x9e,
++	0x80, 0x0a, 0xbb, 0x08, 0xba, 0x80, 0x0b, 0x9e,
++	0x09, 0x9f, 0x80, 0x0a, 0xba, 0x08, 0xb9, 0x80,
++	0x0b, 0x9f, 0x09, 0xa0, 0x80, 0x0a, 0xb9, 0x08,
++	0xb8, 0x80, 0x0b, 0xa0, 0x08, 0x01, 0x80, 0x0a,
++	0xb8, 0x08, 0xb7, 0x80, 0x0a, 0x01, 0x08, 0x02,
++	0x80, 0x0a, 0xb7, 0x08, 0xb6, 0x80, 0x0a, 0x02,
++	0x08, 0x03, 0x80, 0x0a, 0xb6, 0x08, 0xb5, 0x80,
++	0x0a, 0x03, 0x08, 0x04, 0x80, 0x20, 0x03, 0x07,
++	0x04, 0x04, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x2f, 0x00, 0x04, 0x00, 0x90, 0x00, 0x00,
++	0x00, 0x29, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x35, 0x00, 0x04, 0x00, 0x10, 0x00, 0x00,
++	0x00, 0x17, 0x00, 0x00, 0x00, 0x26, 0x00, 0x28,
++	0x00, 0xfb, 0xb2, 0x0f, 0x00, 0x00, 0x00, 0x0f,
++	0x00, 0x30, 0x00, 0x00, 0x00, 0x60, 0x01, 0x02,
++	0x00, 0x40, 0x01, 0x0a, 0x00, 0x01, 0x80, 0x00,
++	0x00, 0x0a, 0x02, 0x00, 0x00, 0x0b, 0x19, 0x00,
++	0x00, 0x50, 0xc3, 0x60, 0xea, 0x01, 0x09, 0x10,
++	0x00, 0x2e, 0x00, 0x1c, 0x00, 0x02, 0x00, 0x18,
++	0x00, 0x23, 0x00, 0x00, 0x00, 0x90, 0x00, 0x90,
++	0x00, 0x4d, 0x01, 0x00, 0x00, 0x90, 0x01, 0x7c,
++	0x01, 0x3c, 0x32, 0x32, 0x32, 0x64, 0x0a, 0x02,
++	0x01, 0x30, 0x00, 0xcc, 0x01, 0x03, 0x00, 0x00,
++	0x00, 0xff, 0x00, 0x00, 0x00, 0x1d, 0x00, 0x00,
++	0x03, 0xff, 0x00, 0x00, 0x00, 0x25, 0x00, 0x00,
++	0x03, 0xff, 0x00, 0x00, 0x00, 0x22, 0x00, 0x00,
++	0x03, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
++	0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e,
++	0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
++	0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
++	0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
++	0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e,
++	0x3f, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46,
++	0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e,
++	0x4f, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56,
++	0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e,
++	0x5f, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
++	0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e,
++	0x6f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76,
++	0x77, 0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e,
++	0x7f, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86,
++	0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e,
++	0x8f, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96,
++	0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e,
++	0x9f, 0x14, 0x24, 0x44, 0x36, 0x52, 0x3c, 0x28,
++	0x40, 0x2a, 0x42, 0x2e, 0x46, 0x32, 0x48, 0x34,
++	0x48, 0x32, 0x4a, 0x34, 0x4c, 0x32, 0x4c, 0x36,
++	0x52, 0x38, 0x50, 0x3a, 0x50, 0x3a, 0x4e, 0x38,
++	0x50, 0x3a, 0x54, 0x38, 0x52, 0x38, 0x50, 0x3a,
++	0x50, 0x38, 0x50, 0x3a, 0x52, 0x3e, 0x28, 0x3c,
++	0x28, 0x3e, 0x28, 0x28, 0x28, 0x28, 0x28, 0x3c,
++	0x28, 0x28, 0x28, 0x3e, 0x2a, 0x28, 0x28, 0x28,
++	0x28, 0x3c, 0x28, 0x3a, 0x48, 0x46, 0x3c, 0x50,
++	0x3c, 0x28, 0x38, 0x4e, 0x28, 0x4e, 0x28, 0x28,
++	0x3e, 0x28, 0x28, 0x28, 0x3c, 0x4e, 0x3a, 0x28,
++	0x3a, 0x50, 0x3c, 0x28, 0x28, 0x50, 0x3a, 0x28,
++	0x3e, 0x28, 0x28, 0x2c, 0x28, 0x28, 0x28, 0x28,
++	0x3e, 0x28, 0x3e, 0x28, 0x38, 0x28, 0x3e, 0x28,
++	0x28, 0x4c, 0x3a, 0x28, 0x3c, 0x28, 0x3a, 0x28,
++	0x3a, 0x4c, 0x3a, 0x4a, 0x3c, 0x4c, 0x3a, 0x4c,
++	0x3a, 0x4a, 0x38, 0x28, 0x3a, 0x4a, 0x38, 0x38,
++	0x3a, 0x38, 0x34, 0x34, 0x34, 0x32, 0x28, 0x1a,
++	0x12, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x80,
++	0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80,
++	0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80,
++	0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80,
++	0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80,
++	0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x80, 0x80,
++	0x80, 0x80, 0x80, 0x81, 0x80, 0x81, 0x80, 0x80,
++	0x80, 0x81, 0x80, 0x80, 0x80, 0x81, 0x80, 0x81,
++	0x80, 0x80, 0x80, 0x80, 0x7f, 0x7f, 0x80, 0x7f,
++	0x80, 0x80, 0x80, 0x7f, 0x81, 0x7f, 0x81, 0x80,
++	0x80, 0x80, 0x81, 0x80, 0x80, 0x7f, 0x80, 0x80,
++	0x80, 0x7f, 0x80, 0x80, 0x81, 0x7f, 0x80, 0x80,
++	0x80, 0x80, 0x81, 0x80, 0x81, 0x80, 0x81, 0x80,
++	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
++	0x81, 0x7f, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
++	0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f,
++	0x80, 0x7f, 0x80, 0x80, 0x80, 0x7f, 0x80, 0x7f,
++	0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f, 0x80, 0x7f,
++	0x7f
++};
++
++static const struct data_exchange_t ACTIVATE_SEQUENCES[] = {
++	{
++		.msg = ACTIVATE_SEQUENCE_MSG1,
++		.msg_length = G_N_ELEMENTS(ACTIVATE_SEQUENCE_MSG1),
++		.rsp = (unsigned char []) { 0x00, 0x00 },
++		.rsp_length = 2,
++	},
++	{
++		.msg = ACTIVATE_SEQUENCE_MSG2,
++		.msg_length = G_N_ELEMENTS(ACTIVATE_SEQUENCE_MSG2),
++		.rsp = (unsigned char []) { 0x00, 0x00, 0x02, 0x00, 0x00, 0x00 },
++		.rsp_length = 6,
++	},
++	{
++		.weak_match = TRUE,
++		.msg = ACTIVATE_SEQUENCE_MSG345,
++		.msg_length = G_N_ELEMENTS(ACTIVATE_SEQUENCE_MSG345),
++		.rsp = ACTIVATE_SEQUENCE_RSP345,
++		.rsp_length = G_N_ELEMENTS(ACTIVATE_SEQUENCE_RSP345),
++	},
++	{
++		.weak_match = TRUE,
++		.msg = ACTIVATE_SEQUENCE_MSG345,
++		.msg_length = G_N_ELEMENTS(ACTIVATE_SEQUENCE_MSG345),
++		.rsp = ACTIVATE_SEQUENCE_RSP345,
++		.rsp_length = G_N_ELEMENTS(ACTIVATE_SEQUENCE_RSP345),
++	},
++	{
++		.weak_match = TRUE,
++		.msg = ACTIVATE_SEQUENCE_MSG345,
++		.msg_length = G_N_ELEMENTS(ACTIVATE_SEQUENCE_MSG345),
++		.rsp = ACTIVATE_SEQUENCE_RSP345,
++		.rsp_length = G_N_ELEMENTS(ACTIVATE_SEQUENCE_RSP345),
++	},
++	{
++		.msg = ACTIVATE_SEQUENCE_MSG67,
++		.msg_length = G_N_ELEMENTS(ACTIVATE_SEQUENCE_MSG67),
++		.rsp = NULL,
++		.rsp_length = 84,
++	},
++	{
++		.msg = ACTIVATE_SEQUENCE_MSG67,
++		.msg_length = G_N_ELEMENTS(ACTIVATE_SEQUENCE_MSG67),
++		.rsp = NULL,
++		.rsp_length = 84,
++	},
++	{
++		.msg = SCAN_MATRIX,
++		.msg_length = G_N_ELEMENTS(SCAN_MATRIX),
++		.rsp = NULL,
++		.rsp_length = -1 /* 2366 or 2 */,
++	},
++};
++
++static const struct data_exchange_t MATRIX_ALREADY_ACTIVATED_DEX = {
++	.msg = SCAN_MATRIX,
++	.msg_length = G_N_ELEMENTS(SCAN_MATRIX),
++	.rsp = (unsigned char []) { 0x50, 0x04 },
++	.rsp_length = 2,
++};
++
++static const struct data_exchange_t DEACTIVATE_SEQUENCES[] = {
++	{
++		.msg = (unsigned char []) { 0x60, 0x00, 0x00, 0x00, 0x00 },
++		.msg_length = 5,
++		.rsp = (unsigned char []) { 0xf5, 0x04 },
++		.rsp_length = 2,
++	},
++	{
++		.msg = (unsigned char []) { 0x62, 0x00, 0x00, 0x00, 0x00 },
++		.msg_length = 5,
++		.rsp = (unsigned char []) { 0x00, 0x00 },
++		.rsp_length = 2,
++	},
++};
++
++
++static unsigned char LED_OFF[] = {
++	0x39, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00
++};
++
++static unsigned char LED_GREEN_ON[] = {
++	0x39, 0x20, 0xbf, 0x02, 0x00, 0xff, 0xff, 0x00,
++	0x00, 0x01, 0x99, 0x00, 0x20, 0x00, 0x00, 0x00,
++	0x00, 0x99, 0x99, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00,
++	0x00, 0x00, 0x99, 0x00, 0x20, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00
++};
++
++static unsigned char LED_RED_BLINK[] = {
++	0x39, 0xee, 0x02, 0x00, 0x00, 0x4b, 0x00, 0x00,
++	0x00, 0x01, 0xff, 0x00, 0x20, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00,
++	0x00, 0x4b, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
++	0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x4b, 0x00, 0x00,
++	0x00, 0x01, 0xff, 0x00, 0x20, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x4b, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
++	0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00
++};
++
++static unsigned char LED_GREEN_BLINK[] = {
++	0x39, 0xf4, 0x01, 0x00, 0x00, 0xf4, 0x01, 0x00,
++	0x00, 0x01, 0xff, 0x00, 0x20, 0x00, 0x00, 0x00,
++	0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0xf4, 0x01, 0x00,
++	0x00, 0x00, 0xff, 0x00, 0x20, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00
++};
+diff --git a/libfprint/fprint-list-udev-rules.c b/libfprint/fprint-list-udev-rules.c
+index de291f1..07d1fed 100644
+--- a/libfprint/fprint-list-udev-rules.c
++++ b/libfprint/fprint-list-udev-rules.c
+@@ -25,7 +25,6 @@
+ 
+ static const struct usb_id whitelist_id_table[] = {
+     /* Unsupported (for now) Validity Sensors finger print readers */
+-    { .vendor = 0x138a, .product = 0x0090 }, /* Found on e.g. Lenovo T460s */
+     { .vendor = 0x138a, .product = 0x0091 },
+     { .vendor = 0x138a, .product = 0x0094 },
+     { .vendor = 0x138a, .product = 0x0097 }, /* Found on e.g. Lenovo T470s */
+diff --git a/libfprint/meson.build b/libfprint/meson.build
+index 976c70c..7519a49 100644
+--- a/libfprint/meson.build
++++ b/libfprint/meson.build
+@@ -118,6 +118,9 @@ foreach driver: drivers
+     if driver == 'vfs0050'
+         drivers_sources += [ 'drivers/vfs0050.c' ]
+     endif
++    if driver == 'vfs0090'
++        drivers_sources += [ 'drivers/vfs0090.c', 'drivers/vfs0090.h' ]
++    endif
+     if driver == 'elan'
+         drivers_sources += [ 'drivers/elan.c' ]
+     endif
+@@ -142,7 +145,7 @@ libfprint_sources += configure_file(input: 'empty_file',
+                                     output: 'drivers_definitions.h',
+                                     capture: true,
+                                     command: [
+-                                      '/bin/echo',
++                                      'echo',
+                                       drivers_struct_list
+                                     ])
+ 
+@@ -150,11 +153,11 @@ libfprint_sources += configure_file(input: 'empty_file',
+                                     output: 'drivers_arrays.h',
+                                     capture: true,
+                                     command: [
+-                                      '/bin/echo',
++                                      'echo',
+                                       drivers_primitive_array + '\n\n' + drivers_img_array
+                                     ])
+ 
+-deps = [ mathlib_dep, glib_dep, libusb_dep, nss_dep, imaging_dep ]
++deps = [ mathlib_dep, glib_dep, libusb_dep, nss_dep, openssl_dep, imaging_dep ]
+ libfprint = library('fprint',
+                     libfprint_sources + drivers_sources + nbis_sources + other_sources,
+                     soversion: soversion,
+diff --git a/meson.build b/meson.build
+index b7f7f31..de21272 100644
+--- a/meson.build
++++ b/meson.build
+@@ -47,7 +47,7 @@ mathlib_dep = cc.find_library('m', required: false)
+ 
+ # Drivers
+ drivers = get_option('drivers').split(',')
+-all_drivers = [ 'upekts', 'upektc', 'upeksonly', 'vcom5s', 'uru4000', 'aes1610', 'aes1660', 'aes2501', 'aes2550', 'aes2660', 'aes3500', 'aes4000', 'vfs101', 'vfs301', 'vfs5011', 'upektc_img', 'etes603', 'vfs0050', 'elan' ]
++all_drivers = [ 'upekts', 'upektc', 'upeksonly', 'vcom5s', 'uru4000', 'aes1610', 'aes1660', 'aes2501', 'aes2550', 'aes2660', 'aes3500', 'aes4000', 'vfs101', 'vfs301', 'vfs5011', 'upektc_img', 'etes603', 'vfs0050', 'vfs0090', 'elan' ]
+ primitive_drivers = [ 'upekts' ]
+ 
+ if drivers == [ 'all' ]
+@@ -59,6 +59,7 @@ if drivers.length() == 0 or drivers[0] == ''
+ endif
+ 
+ nss_dep = dependency('', required: false)
++openssl_dep = dependency('', required: false)
+ imaging_dep = dependency('', required: false)
+ foreach driver: drivers
+     if driver == 'uru4000'
+@@ -73,6 +74,20 @@ foreach driver: drivers
+             error('pixman is required for imaging support')
+         endif
+     endif
++    if driver == 'vfs0090'
++        nss_dep = dependency('nss', required: false)
++        if not nss_dep.found()
++            error('NSS is required for the Validity VFS0090 driver')
++        endif
++        openssl_dep = dependency('openssl', required: false)
++        if not openssl_dep.found()
++            error('OpenSSL is required for the Validity VFS0090 driver')
++        endif
++        imaging_dep = dependency('pixman-1', required: false)
++        if not imaging_dep.found()
++            error('pixman is required for imaging support')
++        endif
++    endif
+     if not all_drivers.contains(driver)
+         error('Invalid driver \'' + driver + '\'')
+     endif
