@@ -98,6 +98,7 @@ sys-apps/progress
 sys-apps/switcheroo-control
 sys-apps/topgrade
 sys-apps/usbutils
+sys-apps/uutils
 sys-apps/xdg-desktop-portal
 sys-apps/xdg-desktop-portal-gtk
 sys-auth/google-authenticator
