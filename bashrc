@@ -67,9 +67,7 @@ case "${CATEGORY}/${PN}" in
         # others:  configure or build failure
         ;;
     *)
-        if [[ -z "${PALUDIS_CROSS_COMPILE_HOST}" ]]; then
-            base_CFLAGS+=" -flto=thin"
-        elif [[ "${CATEGORY}/${PN}" != "dev-libs/icu" ]]; then
+        if [[ -z "${PALUDIS_CROSS_COMPILE_HOST}" ]] || [[ "${CATEGORY}/${PN}" != "dev-libs/icu" ]]; then
             base_CFLAGS+=" -flto=thin"
         fi
         ;;
