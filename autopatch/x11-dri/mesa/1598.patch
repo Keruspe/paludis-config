@@ -1,0 +1,223 @@
+From b11914eee732b44cf47cb7fa4e175491f72d907f Mon Sep 17 00:00:00 2001
+From: Greg V <greg@unrelenting.technology>
+Date: Sun, 31 Dec 2017 19:13:47 +0300
+Subject: [PATCH 1/4] swr: support FreeBSD/DragonFlyBSD
+
+Acked-by: Eric Engestrom <eric.engestrom@intel.com>
+---
+ src/gallium/drivers/swr/rasterizer/common/os.h      | 3 ++-
+ src/gallium/drivers/swr/rasterizer/core/threads.cpp | 7 ++++---
+ src/gallium/drivers/swr/swr_fence.cpp               | 2 ++
+ 3 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/gallium/drivers/swr/rasterizer/common/os.h b/src/gallium/drivers/swr/rasterizer/common/os.h
+index e812da39851..ca2d04f472c 100644
+--- a/src/gallium/drivers/swr/rasterizer/common/os.h
++++ b/src/gallium/drivers/swr/rasterizer/common/os.h
+@@ -97,7 +97,8 @@ static inline void AlignedFree(void* p)
+ #define _mm_popcount_sizeT _mm_popcnt_u32
+ #endif
+ 
+-#elif defined(__APPLE__) || defined(FORCE_LINUX) || defined(__linux__) || defined(__gnu_linux__)
++#elif defined(FORCE_LINUX) || defined(__linux__) || defined(__gnu_linux__) || \
++   defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
+ 
+ #define SWR_API
+ #define SWR_VISIBLE __attribute__((visibility("default")))
+diff --git a/src/gallium/drivers/swr/rasterizer/core/threads.cpp b/src/gallium/drivers/swr/rasterizer/core/threads.cpp
+index 987469340d2..2431d125a17 100644
+--- a/src/gallium/drivers/swr/rasterizer/core/threads.cpp
++++ b/src/gallium/drivers/swr/rasterizer/core/threads.cpp
+@@ -30,13 +30,14 @@
+ #include <fstream>
+ #include <string>
+ 
+-#if defined(__linux__) || defined(__gnu_linux__) || defined(__APPLE__)
++#if defined(__linux__) || defined(__gnu_linux__) || defined(__APPLE__) || \
++   defined(__FreeBSD__) || defined(__DragonFly__)
+ #include <pthread.h>
+ #include <sched.h>
+ #include <unistd.h>
+ #endif
+ 
+-#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
+ #include <sys/types.h>
+ #include <sys/sysctl.h>
+ #endif
+@@ -222,7 +223,7 @@ void CalculateProcessorTopology(CPUNumaNodes& out_nodes, uint32_t& out_numThread
+         }
+     }
+ 
+-#elif defined(__APPLE__)
++#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
+ 
+     auto numProcessors  = 0;
+     auto numCores       = 0;
+diff --git a/src/gallium/drivers/swr/swr_fence.cpp b/src/gallium/drivers/swr/swr_fence.cpp
+index 4e2b2af874c..90d806f4e24 100644
+--- a/src/gallium/drivers/swr/swr_fence.cpp
++++ b/src/gallium/drivers/swr/swr_fence.cpp
+@@ -35,6 +35,8 @@
+ 
+ #if defined(PIPE_CC_MSVC) // portable thread yield
+    #define sched_yield SwitchToThread
++#elif defined(__FreeBSD__) || defined(__DragonFly__)
++   #include <sched.h>
+ #endif
+ 
+ /*
+-- 
+2.22.0
+
+
+From 3f212bc879de6b3e217d65168a5fc643a33dfbf2 Mon Sep 17 00:00:00 2001
+From: Greg V <greg@unrelenting.technology>
+Date: Wed, 4 Jul 2018 20:15:04 +0300
+Subject: [PATCH 2/4] clover: use iterator_range in get_kernel_nodes
+
+With libc++ (LLVM's STL implementation), the original code does not compile because an
+appropriate vector constructor cannot be found (for the _ForwardIterator one, requirement
+is_constructible is not satisfied).
+---
+ src/gallium/state_trackers/clover/llvm/metadata.hpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/gallium/state_trackers/clover/llvm/metadata.hpp b/src/gallium/state_trackers/clover/llvm/metadata.hpp
+index 825008d4974..7f3176e8647 100644
+--- a/src/gallium/state_trackers/clover/llvm/metadata.hpp
++++ b/src/gallium/state_trackers/clover/llvm/metadata.hpp
+@@ -38,11 +38,11 @@
+ namespace clover {
+    namespace llvm {
+       namespace detail {
+-         inline std::vector<const ::llvm::MDNode *>
++         inline iterator_range< ::llvm::NamedMDNode::const_op_iterator>
+          get_kernel_nodes(const ::llvm::Module &mod) {
+             if (const ::llvm::NamedMDNode *n =
+                    mod.getNamedMetadata("opencl.kernels"))
+-               return { n->op_begin(), n->op_end() };
++               return range(n->op_begin(), n->op_end());
+             else
+                return {};
+          }
+-- 
+2.22.0
+
+
+From cc391f41a49c4f00f894e1ce856102b3ecec920d Mon Sep 17 00:00:00 2001
+From: Greg V <greg@unrelenting.technology>
+Date: Tue, 30 Oct 2018 20:38:03 +0300
+Subject: [PATCH 3/4] radv, anv: use CLOCK_MONOTONIC_FAST when
+ CLOCK_MONOTONIC_RAW is undefined
+
+CLOCK_MONOTONIC_FAST is a similar clock from FreeBSD.
+
+Acked-by: Eric Engestrom <eric.engestrom@intel.com>
+---
+ src/amd/vulkan/radv_device.c  | 5 +++++
+ src/intel/vulkan/anv_device.c | 5 +++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/src/amd/vulkan/radv_device.c b/src/amd/vulkan/radv_device.c
+index 4a2d836abe3..c318713b608 100644
+--- a/src/amd/vulkan/radv_device.c
++++ b/src/amd/vulkan/radv_device.c
+@@ -50,6 +50,11 @@
+ #include "compiler/glsl_types.h"
+ #include "util/xmlpool.h"
+ 
++/* The "RAW" clocks on Linux are called "FAST" on FreeBSD */
++#if !defined(CLOCK_MONOTONIC_RAW) && defined(CLOCK_MONOTONIC_FAST)
++#define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC_FAST
++#endif
++
+ static int
+ radv_device_get_cache_uuid(enum radeon_family family, void *uuid)
+ {
+diff --git a/src/intel/vulkan/anv_device.c b/src/intel/vulkan/anv_device.c
+index 9a5dba040cc..c233e8497ff 100644
+--- a/src/intel/vulkan/anv_device.c
++++ b/src/intel/vulkan/anv_device.c
+@@ -52,6 +52,11 @@
+  */
+ #define MAX_DEBUG_MESSAGE_LENGTH    4096
+ 
++/* The "RAW" clocks on Linux are called "FAST" on FreeBSD */
++#if !defined(CLOCK_MONOTONIC_RAW) && defined(CLOCK_MONOTONIC_FAST)
++#define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC_FAST
++#endif
++
+ static void
+ compiler_debug_log(void *data, const char *fmt, ...)
+ {
+-- 
+2.22.0
+
+
+From f437ad7ad2f99eb1d246e2d77f982133b377dc62 Mon Sep 17 00:00:00 2001
+From: Greg V <greg@unrelenting.technology>
+Date: Sun, 16 Sep 2018 19:52:33 +0300
+Subject: [PATCH 4/4] main, iris: fix FreeBSD 'ALIGN' macro name collision
+
+ALIGN is defined as a macro on FreeBSD (machine/param.h via sys/param.h)
+and as a static inline function in Mesa.
+---
+ src/gallium/drivers/iris/iris_bufmgr.c | 3 +++
+ src/gallium/drivers/iris/iris_state.c  | 3 +++
+ src/mesa/main/macros.h                 | 4 +++-
+ 3 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/gallium/drivers/iris/iris_bufmgr.c b/src/gallium/drivers/iris/iris_bufmgr.c
+index e34c8f34912..0aca97560e9 100644
+--- a/src/gallium/drivers/iris/iris_bufmgr.c
++++ b/src/gallium/drivers/iris/iris_bufmgr.c
+@@ -68,6 +68,9 @@
+ 
+ #include "drm-uapi/i915_drm.h"
+ 
++/* Prevent name collision with FreeBSD's machine/param.h */
++#undef ALIGN
++
+ #ifdef HAVE_VALGRIND
+ #include <valgrind.h>
+ #include <memcheck.h>
+diff --git a/src/gallium/drivers/iris/iris_state.c b/src/gallium/drivers/iris/iris_state.c
+index 7932df23e3d..7d3a6b67b4f 100644
+--- a/src/gallium/drivers/iris/iris_state.c
++++ b/src/gallium/drivers/iris/iris_state.c
+@@ -109,6 +109,9 @@
+ #include "iris_genx_macros.h"
+ #include "intel/common/gen_guardband.h"
+ 
++/* Prevent name collision with FreeBSD's machine/param.h */
++#undef ALIGN
++
+ #if GEN_GEN == 8
+ #define MOCS_PTE 0x18
+ #define MOCS_WB 0x78
+diff --git a/src/mesa/main/macros.h b/src/mesa/main/macros.h
+index 03a228b4474..822abe112e7 100644
+--- a/src/mesa/main/macros.h
++++ b/src/mesa/main/macros.h
+@@ -28,6 +28,9 @@
+  */
+ 
+ 
++/* Prevent name collision with FreeBSD's machine/param.h */
++#undef ALIGN
++
+ #ifndef MACROS_H
+ #define MACROS_H
+ 
+@@ -36,7 +39,6 @@
+ #include "util/rounding.h"
+ #include "imports.h"
+ 
+-
+ /**
+  * \name Integer / float conversion for colors, normals, etc.
+  */
+-- 
+2.22.0
+
