@@ -1,0 +1,41 @@
+From cbc71febbd09a384ae877b60f45c7d80e161373a Mon Sep 17 00:00:00 2001
+From: Marc-Antoine Perennou <keruspe@exherbo.org>
+Date: Thu, 30 Apr 2020 22:11:13 +0200
+Subject: [PATCH] sane-backends: bump to 1.0.29
+
+Signed-off-by: Marc-Antoine Perennou <keruspe@exherbo.org>
+---
+ ...ends-1.0.27.exheres-0 => sane-backends-1.0.29.exheres-0} | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+ rename packages/media-gfx/sane-backends/{sane-backends-1.0.27.exheres-0 => sane-backends-1.0.29.exheres-0} (94%)
+
+diff --git a/packages/media-gfx/sane-backends/sane-backends-1.0.27.exheres-0 b/packages/media-gfx/sane-backends/sane-backends-1.0.29.exheres-0
+similarity index 94%
+rename from packages/media-gfx/sane-backends/sane-backends-1.0.27.exheres-0
+rename to packages/media-gfx/sane-backends/sane-backends-1.0.29.exheres-0
+index f632da61..9119064f 100644
+--- a/packages/media-gfx/sane-backends/sane-backends-1.0.27.exheres-0
++++ b/packages/media-gfx/sane-backends/sane-backends-1.0.29.exheres-0
+@@ -7,7 +7,7 @@ require autotools [ supported_autoconf=[ 2.5 ] supported_automake=[ 1.16 1.15 ]
+ 
+ SUMMARY="Scanner Access Now Easy - Backends"
+ HOMEPAGE="http://www.sane-project.org"
+-DOWNLOADS="https://alioth.debian.org/frs/download.php/file/4224/${PNV}.tar.gz"
++DOWNLOADS="https://gitlab.com/sane-project/backends/uploads/54f858b20a364fc35d820df935a86478/${PNV}.tar.gz"
+ 
+ REMOTE_IDS="freecode:sane"
+ 
+@@ -91,6 +91,10 @@ src_prepare() {
+         -e "s:pkg-config:$(exhost --tool-prefix)&:g" \
+         -i tools/sane-config.in
+ 
++    edo sed \
++        -e "s:m4_esyscmd_s(\[git describe --dirty]):[${PV}]:" \
++        -i configure.ac
++
+     autotools_src_prepare
+ }
+ 
+-- 
+2.26.2
+
