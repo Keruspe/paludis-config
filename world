@@ -16,10 +16,10 @@ app-vim/gtk-syntax
 app-vim/LanguageClient
 app-vim/securemodelines
 dev-db/postgresql-client
+dev-java/gradle
 dev-java/maven
 dev-lang/rust
 dev-libs/compiler-rt
-dev-ruby/bundler
 dev-rust/brainfuck_rs
 dev-rust/cargo-audit
 dev-rust/cargo-outdated
@@ -39,6 +39,8 @@ dev-util/strace
 dev-util/valgrind
 firmware/intel-microcode
 firmware/linux-firmware
+fonts/noto
+fonts/noto-emoji
 fonts/unifont
 gnome-desktop/baobab
 gnome-desktop/dconf-editor
@@ -61,7 +63,6 @@ gnome-desktop/sysprof
 gnome-desktop/vinagre
 import/brother-DCP1510-cupswrapper
 import/brother-DCP1510-lpr
-import/brscan4
 inputmethods/mozc
 mail-client/evolution
 media-gfx/simple-scan
@@ -69,7 +70,6 @@ media-libs/libldac
 media-libs/libopenaptx
 media-plugins/gst-libav
 net-analyzer/tcpdump
-net-analyzer/wireshark
 net-apps/s3cmd
 net-dns/bind-tools
 net-misc/fping
@@ -78,9 +78,9 @@ net-misc/mtr
 net-misc/socat
 net-misc/telnet
 net-misc/whois
-net-misc/wireguard
 net/rabbitmq-server
 net-scanner/nmap
+net/wireguard-tools
 net-wireless/iw
 net-wireless/iwd
 net-wireless/ModemManager
@@ -114,6 +114,7 @@ sys-fs/squashfs-tools
 sys-libs/libc++
 sys-libs/openmp
 sys-process/htop
+sys-process/iotop
 sys-process/lsof
 sys-sound/alsa-utils
 x11-apps/Germinal
@@ -123,4 +124,4 @@ x11-apps/xhost
 x11-apps/xrandr
 x11-drivers/nvidia-drivers
 x11-drivers/xf86-input-libinput
-x11-libs/gtk+:4.0
+x11-libs/gtk
