@@ -20,6 +20,10 @@ case "${CATEGORY}/${PN}" in
         # error: static_assert expression is not an integral constant expression
         GNUC_VERSION="4.5.4"
         ;;
+    "dev-libs/libdazzle"|"dev-libs/libhandy"|"gnome-desktop/gnome-builder"|"gnome-desktop/nautilus"|"sys-apps/flatpak"|"sys-devel/libostree")
+        # error: passing 'typeof (*(&g_define_type_id__volatile)) *' (aka 'volatile unsigned long *') to parameter of type 'gsize *' (aka 'unsigned long *') discards qualifier
+        GNUC_VERSION="4.7.4"
+        ;;
 esac
 if [[ -n "${GNUC_VERSION}" ]]; then
     base_CFLAGS+=" -fgnuc-version=${GNUC_VERSION}"
@@ -38,6 +42,12 @@ fi
 
 # Custom {C,LD}FLAGS or linker
 case "${CATEGORY}/${PN}" in
+    "dev-libs/libfido2")
+        base_CFLAGS+=" -DHAVE_UNISTD_H -Wno-unused-command-line-argument"
+        ;;
+    "dev-util/strace")
+        base_CFLAGS+=" -Wno-unused-command-line-argument"
+        ;;
     "gnome-desktop/evince")
         base_CFLAGS+=" -Wno-format-nonliteral"
         ;;
@@ -52,6 +62,9 @@ case "${CATEGORY}/${PN}" in
         # error: undefined symbol: sqrt
         base_LDFLAGS+=" -lm"
         ;;
+    "sys-libs/libcap")
+        base_LDFLAGS=" -lunwind"
+        ;;
     "x11-libs/cairo")
         # error: undefined reference to pthread_mutexattr_init
         base_LDFLAGS+=" -lpthread"
@@ -60,7 +73,7 @@ esac
 
 # LTO handling
 case "${CATEGORY}/${PN}" in
-    "dev-lang/erlang"|"dev-lang/perl"|"dev-lang/python"|"dev-libs/glib"|"dev-libs/libgcrypt"|"dev-libs/libglvnd"|"dev-util/elfutils"|"dev-util/strace"|"dev-util/valgrind"|"media-libs/x264"|"net-print/cups"|"sys-apps/fwupd"|"sys-boot/gnu-efi"|"sys-devel/gcc"|"sys-devel/libostree"|"sys-libs/glibc"|"sys-libs/libgcc"|"x11-dri/mesa"|"x11-libs/pango")
+    "dev-lang/erlang"|"dev-lang/perl"|"dev-lang/python"|"dev-libs/glib"|"dev-libs/libgcrypt"|"dev-libs/libglvnd"|"dev-util/elfutils"|"dev-util/strace"|"dev-util/valgrind"|"media-libs/x264"|"net-print/cups"|"sys-apps/fwupd"|"sys-boot/gnu-efi"|"sys-devel/gcc"|"sys-devel/libostree"|"sys-libs/glibc"|"sys-libs/libatomic"|"sys-libs/libgcc"|"sys-libs/libstdc++"|"x11-dri/mesa"|"x11-libs/pango")
         # erlang:  fails at runtime (build elixir, rabbitmq)
         # fwupd:   fails at runtime to load modules
         # gnu-efi: fails at runtime
