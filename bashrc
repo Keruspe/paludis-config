@@ -10,7 +10,7 @@ case "${CATEGORY}/${PN}" in
         # build system forces gcc
         GNUC_VERSION=""
         ;;
-    "app-arch/gzip"|"app-arch/tar"|"app-editors/vim"|"app-editors/vim-runtime"|"app-spell/enchant"|"base/libatasmart"|"dev-lang/erlang"|"dev-lang/ruby"|"dev-libs/gtk-vnc"|"dev-libs/libsodium"|"dev-libs/popt"|"dev-libs/spidermonkey"|"gnome-desktop/GPaste"|"media-libs/libcanberra"|"media-libs/opus"|"media-sound/pulseaudio"|"net-misc/openssh"|"net-print/cups"|"net-scanner/nmap"|"net-www/firefox"|"sys-apps/accountsservice"|"sys-apps/coreutils"|"sys-apps/kbd"|"sys-apps/sed"|"sys-boot/dracut"|"sys-devel/gdb"|"sys-devel/m4"|"x11-libs/cairo")
+    "app-arch/gzip"|"app-arch/tar"|"app-editors/vim"|"app-editors/vim-runtime"|"app-spell/enchant"|"base/libatasmart"|"dev-lang/erlang"|"dev-lang/ruby"|"dev-libs/gtk-vnc"|"dev-libs/libsodium"|"dev-libs/popt"|"dev-libs/spidermonkey"|"gnome-desktop/GPaste"|"media-libs/libcanberra"|"media-libs/opus"|"media-libs/libsndfile"|"media-sound/pulseaudio"|"net-misc/openssh"|"net-print/cups"|"net-scanner/nmap"|"net-www/firefox"|"sys-apps/accountsservice"|"sys-apps/coreutils"|"sys-apps/kbd"|"sys-apps/sed"|"sys-boot/dracut"|"sys-devel/gdb"|"sys-devel/m4"|"x11-libs/cairo")
         # erlang: configure fails
         # gcc:    random build failure
         # others: error: undefined symbol: __builtin_va_arg_pack  (introduced in gcc 4.3)
@@ -20,7 +20,7 @@ case "${CATEGORY}/${PN}" in
         # error: static_assert expression is not an integral constant expression
         GNUC_VERSION="4.5.4"
         ;;
-    "dev-libs/libdazzle"|"dev-libs/libhandy"|"gnome-desktop/gnome-builder"|"gnome-desktop/nautilus"|"sys-apps/flatpak"|"sys-devel/libostree")
+    "dev-libs/jsonrpc-glib"|"dev-libs/libdazzle"|"dev-libs/libhandy"|"dev-libs/template-glib"|"gnome-desktop/gnome-builder"|"gnome-desktop/gtksourceview"|"gnome-desktop/nautilus"|"gnome-desktop/sysprof"|"sys-apps/flatpak"|"sys-devel/libostree")
         # error: passing 'typeof (*(&g_define_type_id__volatile)) *' (aka 'volatile unsigned long *') to parameter of type 'gsize *' (aka 'unsigned long *') discards qualifier
         GNUC_VERSION="4.7.4"
         ;;
@@ -73,7 +73,7 @@ esac
 
 # LTO handling
 case "${CATEGORY}/${PN}" in
-    "dev-lang/erlang"|"dev-lang/perl"|"dev-lang/python"|"dev-libs/glib"|"dev-libs/libgcrypt"|"dev-libs/libglvnd"|"dev-util/elfutils"|"dev-util/strace"|"dev-util/valgrind"|"media-libs/x264"|"net-print/cups"|"sys-apps/fwupd"|"sys-boot/gnu-efi"|"sys-devel/gcc"|"sys-devel/libostree"|"sys-libs/glibc"|"sys-libs/libatomic"|"sys-libs/libgcc"|"sys-libs/libstdc++"|"x11-dri/mesa"|"x11-libs/pango")
+    "dev-lang/erlang"|"dev-lang/perl"|"dev-lang/python"|"dev-libs/glib"|"dev-libs/libgcrypt"|"dev-libs/libglvnd"|"dev-util/elfutils"|"dev-util/strace"|"dev-util/valgrind"|"gnome-bindings/gjs"|"media-libs/x264"|"net-print/cups"|"sys-apps/fwupd"|"sys-boot/gnu-efi"|"sys-devel/gcc"|"sys-devel/libostree"|"sys-libs/glibc"|"sys-libs/libatomic"|"sys-libs/libgcc"|"sys-libs/libstdc++"|"x11-dri/mesa"|"x11-libs/pango")
         # erlang:  fails at runtime (build elixir, rabbitmq)
         # fwupd:   fails at runtime to load modules
         # gnu-efi: fails at runtime
@@ -90,8 +90,8 @@ base_CXXFLAGS="${base_CFLAGS}"
 
 # Custom CXXFLAGS
 case "${CATEGORY}/${PN}" in
-    "sys-auth/polkit")
-        base_CXXFLAGS+=" -std=c++14"
+    "place/holder")
+        base_CXXFLAGS+=""
         ;;
 esac
 
@@ -104,3 +104,4 @@ i686_pc_linux_gnu_CXXFLAGS="${base_CXXFLAGS}"
 i686_pc_linux_gnu_LDFLAGS="${base_LDFLAGS}"
 
 RUSTFLAGS="-C target-cpu=native -C opt-level=3"
+[[ "${CATEGORY}/${PN}:${SLOT}" == "dev-lang/rust:nightly" ]] || RUSTFLAGS+=" -C llvm-args=--polly"
